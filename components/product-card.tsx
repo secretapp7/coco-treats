@@ -1,85 +1,112 @@
 "use client";
 
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { brand } from "@/config/brand";
+import type { AppLanguage } from "@/config/translations";
+import { translations } from "@/config/translations";
+import { ProductVisual } from "@/components/product-visual";
+import { RatingSummary } from "@/components/rating-summary";
+import type { ReviewProductId } from "@/data/reviews";
+import { getAverageRating, getReviewCount } from "@/data/reviews";
+import {
+  cardHoverWhile,
+  easePremium,
+  scaleTapWhile,
+  staggerItemVariants,
+} from "@/lib/motion";
 
 type ProductCardProps = {
   product: Product;
+  language: AppLanguage;
 };
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, language }: ProductCardProps) {
+  const t = translations[language];
+  const reduced = useReducedMotion() ?? false;
   const startingPrice = Math.min(...product.sizes.map((size) => size.priceOmr));
+  const pid = product.id as ReviewProductId;
+  const avg = getAverageRating(pid);
+  const count = getReviewCount(pid);
 
-  function selectDessert() {
-    window.dispatchEvent(
-      new CustomEvent("dessert:selected", {
-        detail: { productId: product.id },
-      }),
-    );
-
-    const orderSection = document.getElementById("order-form");
-    orderSection?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  const hoverLift = cardHoverWhile(reduced);
+  const tapScale = scaleTapWhile(reduced);
 
   return (
-    <article className="overflow-hidden rounded-3xl border border-[#dbc6b0] bg-[#fff8f1] shadow-[0_14px_30px_-18px_rgba(73,49,34,0.6)]">
-      <div className="relative p-4 sm:p-5">
-        <div
-          className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-r ${product.visualGradient} opacity-90`}
-        />
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="rounded-xl bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#7f4f58]">
-            {product.badge}
-          </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/85 text-xs font-bold text-[#5a3829]">
-            {product.icon}
-          </div>
-        </div>
-        <div className="relative mt-6 space-y-2">
-          <h3 className="text-xl font-semibold tracking-tight text-[#4b2e21]">
-            {product.name}
-          </h3>
-          <p className="text-sm leading-relaxed text-[#7a5f4e]">{product.description}</p>
-        </div>
-      </div>
-
-      <div className="mx-4 mb-4 rounded-2xl bg-[#fff1e4] p-4 sm:mx-5 sm:mb-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9f7a52]">
-          Sizes and pricing
-        </p>
-        <ul className="mt-2 space-y-2 text-sm text-[#5e4536]">
-          {product.sizes.map((size) => (
-            <li
-              key={`${product.id}-${size.label}`}
-              className="grid grid-cols-[1fr_auto] items-start gap-2 rounded-xl bg-[#fff8f1] px-3 py-2"
+    <motion.div
+      variants={staggerItemVariants(reduced)}
+      whileHover={hoverLift ? hoverLift : undefined}
+      whileTap={tapScale}
+      transition={{ duration: 0.2 }}
+      className="h-full"
+    >
+      <Link
+        href={`/products/${product.id}`}
+        className="group block h-full overflow-hidden rounded-[1.35rem] border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] shadow-[0_10px_28px_-18px_rgba(74,6,20,0.12)] outline-none ring-0 transition-[box-shadow] supports-[hover:hover]:hover:shadow-[0_14px_36px_-20px_rgba(74,6,20,0.16)] supports-[hover:hover]:hover:ring-1 supports-[hover:hover]:hover:ring-[color:var(--brand-gold-soft)]/45"
+        aria-labelledby={`product-title-${product.id}`}
+      >
+        <div className="relative aspect-[3/4] w-full overflow-hidden bg-[color:var(--brand-burgundy)]">
+          <ProductVisual
+            product={product}
+            language={language}
+            className="absolute inset-0 h-full w-full"
+            sizes="(max-width: 428px) 100vw, 400px"
+          />
+          <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+          <div
+            className="pointer-events-none absolute inset-0 z-[2] opacity-[0.22] mix-blend-soft-light ds-product-card-glow"
+            aria-hidden
+          />
+          <motion.span
+            initial={reduced ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reduced ? 0.12 : 0.24, ease: easePremium }}
+            className="absolute start-2.5 top-2.5 z-[3] inline-flex rounded-full border-2 border-[color:var(--brand-burgundy)] bg-[color:var(--brand-gold-soft)]/92 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[color:var(--brand-burgundy)] shadow-sm ring-1 ring-[color:var(--border-soft)] backdrop-blur-sm"
+          >
+            {product.badge[language]}
+          </motion.span>
+          {count > 0 ? (
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduced ? 0.12 : 0.26, ease: easePremium, delay: reduced ? 0 : 0.05 }}
+              className="absolute bottom-2.5 start-2.5 end-2.5 z-[3] flex flex-wrap items-end justify-between gap-1"
             >
-              <div>
-                <p className="font-medium text-[#5a3829]">{size.label}</p>
-                <p className="text-xs text-[#7e624f]">{size.serves}</p>
-              </div>
-              <p className="font-semibold text-[#4b2e21]">
-                {size.priceOmr.toFixed(2)} {brand.currency}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </div>
+              <RatingSummary
+                language={language}
+                average={avg}
+                count={count}
+                reviewsWord={t.reviews.reviewsWord}
+                compact
+              />
+            </motion.div>
+          ) : null}
+        </div>
 
-      <div className="flex items-center justify-between gap-3 px-4 pb-5 sm:px-5">
-        <p className="text-sm font-medium text-[#4b2e21]">
-          Starting from{" "}
-          <span className="text-base font-semibold">
-            {startingPrice.toFixed(2)} {brand.currency}
-          </span>
-        </p>
-        <button
-          type="button"
-          onClick={selectDessert}
-          className="inline-flex min-h-10 items-center rounded-full bg-[#4b2e21] px-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#fff7ee]"
-        >
-          Select this dessert
-        </button>
-      </div>
-    </article>
+        <div className="space-y-2 px-3 pb-3 pt-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <h3
+              id={`product-title-${product.id}`}
+              className="min-w-0 flex-1 text-[16px] font-semibold leading-tight tracking-tight text-[color:var(--foreground)]"
+            >
+              {product.name[language]}
+            </h3>
+          </div>
+          <p className="line-clamp-2 text-[11px] leading-relaxed text-[color:var(--muted-text)]">{product.description[language]}</p>
+          <div className="flex items-center justify-between gap-3 pt-0.5">
+            <p className="text-[13px] leading-none">
+              <span className="text-[10px] font-medium text-[color:var(--brand-gold-muted)]">{t.productCard.startingFrom}</span>{" "}
+              <span className="font-bold tabular-nums text-[color:var(--brand-burgundy)]">
+                {startingPrice.toFixed(2)} {brand.currency}
+              </span>
+            </p>
+            <span className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-[color:var(--brand-gold-muted)]/40 bg-[color:var(--brand-burgundy)] px-4 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--card-cream)] shadow-sm supports-[hover:hover]:group-hover:brightness-110">
+              {t.productCard.view}
+            </span>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
   );
 }

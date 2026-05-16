@@ -1,157 +1,424 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ProductVisual } from "@/components/product-visual";
+import { formatLocaleQuantity } from "@/components/review-format";
 import { brand } from "@/config/brand";
+import { FULFILLMENT, type FulfillmentMethod } from "@/config/fulfillment";
 import { products } from "@/data/products";
+import type { AppLanguage } from "@/config/translations";
+import { translations } from "@/config/translations";
+import {
+  easePremium,
+  scaleTapWhile,
+  staggerContainerVariants,
+  staggerItemVariants,
+} from "@/lib/motion";
 
-type DeliveryMethod =
-  | typeof brand.fulfillmentLabels.pickup
-  | typeof brand.fulfillmentLabels.delivery;
+type GpsCapture = {
+  lat: number;
+  lng: number;
+  accuracyM: number | undefined;
+  mapsUrl: string;
+};
+
+type GeoUiStatus = "idle" | "loading" | "success" | "error";
 
 type OrderFormState = {
   customerName: string;
   phoneNumber: string;
   productId: string;
-  sizeLabel: string;
+  sizeId: string;
   quantity: number;
   dateNeeded: string;
-  fulfillmentMethod: DeliveryMethod;
-  location: string;
+  fulfillmentMethod: FulfillmentMethod;
+  mapsLinkPasted: string;
+  addressDetails: string;
   notes: string;
 };
 
+const ADDRESS_MIN_CHARS = 8;
+const ADDRESS_FALLBACK_WITHOUT_LINK_CHARS = 22;
+
 const initialProduct = products[0];
-const initialSize = initialProduct.sizes[0];
+const initialSize = initialProduct.sizes[0].id;
 
+const labelClass = "block text-[11px] font-semibold text-[color:var(--muted-text)]";
 const inputStyles =
-  "mt-1 w-full rounded-xl border border-[#dfcbb8] bg-[#fffdfb] px-4 py-3 text-base text-[#4b2e21] outline-none transition focus:border-[#c9a37c] focus:ring-2 focus:ring-[#f0d8bf]";
+  "mt-1 min-h-11 w-full rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-3 py-2.5 text-[13px] text-[color:var(--foreground)] outline-none transition focus:border-[color:var(--brand-gold)] focus:ring-2 focus:ring-[color:var(--brand-gold-muted)]/40";
 
-export function OrderForm() {
-  const dessertSelectRef = useRef<HTMLSelectElement>(null);
+function buildMapsLatLngUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
+function isHttpsOrHttpUrl(value: string): boolean {
+  const v = value.trim();
+  return /^https:\/\//i.test(v) || /^http:\/\//i.test(v);
+}
+
+function hasLocationMethod(opts: {
+  gps: GpsCapture | null;
+  mapsPaste: string;
+  address: string;
+}): boolean {
+  if (opts.gps) return true;
+  const paste = opts.mapsPaste.trim();
+  if (paste && isHttpsOrHttpUrl(paste)) return true;
+  return opts.address.trim().length >= ADDRESS_FALLBACK_WITHOUT_LINK_CHARS;
+}
+
+function formatNeededDate(language: AppLanguage, isoDate: string): string {
+  if (!isoDate) return "";
+  const parts = isoDate.split("-").map((p) => Number(p));
+  const y = parts[0];
+  const mo = parts[1];
+  const d = parts[2];
+  if (!y || !mo || !d) return isoDate;
+  const utc = Date.UTC(y, mo - 1, d);
+  try {
+    return new Date(utc).toLocaleDateString(language === "ar" ? "ar-OM" : "en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  } catch {
+    return isoDate;
+  }
+}
+
+function geolocationErrorText(
+  language: AppLanguage,
+  err: GeolocationPositionError | null,
+  unsupported: boolean,
+): string {
+  const geo = translations[language].geolocation;
+  if (unsupported) return geo.notSupported;
+  if (!err) return geo.unknownError;
+  if (err.code === 1) return geo.permissionDenied;
+  return geo.positionError;
+}
+
+function buildLocalizedOrderMessage(opts: {
+  wt: (typeof translations)["en"]["whatsappOrder"];
+  form: OrderFormState;
+  gps: GpsCapture | null;
+  dessertName: string;
+  sizeLine: string;
+  qty: number;
+  dateFormatted: string;
+  fulfillmentLabel: string;
+  estimated: number;
+}): string[] {
+  const { wt } = opts;
+  const none = wt.none;
+
+  const lines: string[] = [
+    wt.title,
+    "",
+    wt.customerDetails,
+    `${wt.labelName}: ${opts.form.customerName.trim() || none}`,
+    `${wt.labelPhone}: ${opts.form.phoneNumber.trim() || none}`,
+    "",
+    wt.orderDetails,
+    `${wt.labelDessert}: ${opts.dessertName}`,
+    `${wt.labelSize}: ${opts.sizeLine}`,
+    `${wt.labelQuantity}: ${opts.qty}`,
+    `${wt.labelDateNeeded}: ${opts.dateFormatted || none}`,
+    `${wt.labelOrderType}: ${opts.fulfillmentLabel}`,
+  ];
+
+  if (opts.form.fulfillmentMethod === FULFILLMENT.PICKUP) {
+    lines.push("", wt.pickupNote);
+  } else {
+    const linkLines: string[] = [];
+    if (opts.gps) {
+      linkLines.push(`${wt.locationGpsPrefix} ${opts.gps.mapsUrl}`);
+    }
+    const pasted = opts.form.mapsLinkPasted.trim();
+    if (pasted && isHttpsOrHttpUrl(pasted)) {
+      linkLines.push(`${wt.locationPastedPrefix} ${pasted}`);
+    }
+    const mergedLinks = linkLines.length > 0 ? linkLines.join("\n") : none;
+    lines.push(
+      "",
+      wt.deliveryDetails,
+      `${wt.labelLocationLink}:`,
+      mergedLinks,
+      "",
+      `${wt.labelAddressDetails}: ${opts.form.addressDetails.trim() || none}`,
+    );
+  }
+
+  lines.push("", `${wt.labelNotes}: ${opts.form.notes.trim() || none}`, "", `${wt.labelEstimatedTotal}: ${opts.estimated.toFixed(2)} ${brand.currency}`);
+
+  return lines;
+}
+
+function MotionSection({
+  title,
+  reduced,
+  children,
+}: {
+  title: string;
+  reduced: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <motion.section
+      variants={staggerItemVariants(reduced)}
+      className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--card-beige)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
+    >
+      <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-gold-muted)]">{title}</h3>
+      <div className="mt-2.5 space-y-2.5">{children}</div>
+    </motion.section>
+  );
+}
+
+function FieldError({
+  show,
+  message,
+  reduced,
+}: {
+  show: boolean;
+  message?: string;
+  reduced: boolean;
+}) {
+  return (
+    <AnimatePresence mode="sync">
+      {show && message ? (
+        <motion.p
+          key={message}
+          role="alert"
+          initial={reduced ? { opacity: 0 } : { opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, transition: { duration: reduced ? 0.06 : 0.1 } }}
+          transition={{ duration: reduced ? 0.12 : 0.18, ease: easePremium }}
+          className="mt-1 text-[10px] leading-snug text-[color:var(--brand-burgundy-soft)]"
+        >
+          {message}
+        </motion.p>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+type OrderFormValidation = Partial<
+  Record<
+    | "customerName"
+    | "phoneNumber"
+    | "productId"
+    | "sizeId"
+    | "dateNeeded"
+    | "quantity"
+    | "mapsLinkPasted"
+    | "addressDetails"
+    | "deliveryLocationMethod"
+    | "fulfillmentMethod",
+    string
+  >
+>;
+
+type OrderFormProps = {
+  language: AppLanguage;
+  initialProductId?: string;
+  initialSizeId?: string;
+};
+
+export function OrderForm({ language, initialProductId, initialSizeId }: OrderFormProps) {
+  const t = translations[language];
+  const wt = translations[language].whatsappOrder;
+  const reduced = useReducedMotion() ?? false;
+  const tapScale = scaleTapWhile(reduced);
+
+  const initialSelectedProduct =
+    products.find((product) => product.id === initialProductId) ?? initialProduct;
+
+  const initialSizeResolved =
+    initialSelectedProduct.sizes.find((s) => s.id === initialSizeId)?.id ??
+    initialSelectedProduct.sizes[0]?.id ??
+    initialSize;
+
   const [form, setForm] = useState<OrderFormState>({
     customerName: "",
     phoneNumber: "",
-    productId: initialProduct.id,
-    sizeLabel: initialSize.label,
+    productId: initialSelectedProduct.id,
+    sizeId: initialSizeResolved,
     quantity: 1,
     dateNeeded: "",
-    fulfillmentMethod: brand.fulfillmentLabels.pickup,
-    location: "",
+    fulfillmentMethod: FULFILLMENT.PICKUP,
+    mapsLinkPasted: "",
+    addressDetails: "",
     notes: "",
   });
+
+  const [gps, setGps] = useState<GpsCapture | null>(null);
+  const [geoUi, setGeoUi] = useState<GeoUiStatus>("idle");
+  const [geoErrorMessage, setGeoErrorMessage] = useState<string | null>(null);
+
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState(false);
 
-  const selectedProduct = useMemo(
-    () => products.find((product) => product.id === form.productId) ?? products[0],
-    [form.productId],
-  );
+  const selectedProduct =
+    products.find((product) => product.id === form.productId) ?? initialProduct;
 
   const availableSizes = selectedProduct.sizes;
-  const selectedSize =
-    availableSizes.find((size) => size.label === form.sizeLabel) ?? availableSizes[0];
+  const selectedSize = availableSizes.find((size) => size.id === form.sizeId) ?? availableSizes[0];
   const estimatedTotal = selectedSize.priceOmr * form.quantity;
 
-  const validationErrors = useMemo(() => {
-    const errors: Partial<Record<keyof OrderFormState, string>> = {};
+  const hasMapPaste = Boolean(form.mapsLinkPasted.trim() && isHttpsOrHttpUrl(form.mapsLinkPasted));
+  const showLocationAddedInSummary =
+    form.fulfillmentMethod === FULFILLMENT.DELIVERY &&
+    Boolean((gps && geoUi === "success") || hasMapPaste);
+
+  const validationErrors: OrderFormValidation = (() => {
+    const errors: OrderFormValidation = {};
+
+    const productOk = Boolean(products.find((p) => p.id === form.productId));
+    if (!productOk) errors.productId = t.validation.productRequired;
+
+    const sizeOk = Boolean(selectedProduct.sizes.some((s) => s.id === form.sizeId));
+    if (!sizeOk) errors.sizeId = t.validation.sizeRequired;
+
+    if (!form.fulfillmentMethod) {
+      errors.fulfillmentMethod = t.validation.fulfillmentRequired;
+    }
 
     if (form.customerName.trim().length < 2) {
-      errors.customerName = "Please enter your full name.";
+      errors.customerName = t.validation.fullName;
     }
 
     const cleanedPhone = form.phoneNumber.replace(/[^\d+]/g, "");
     if (!/^\+?\d{8,15}$/.test(cleanedPhone)) {
-      errors.phoneNumber = "Please enter a valid phone number.";
+      errors.phoneNumber = t.validation.phone;
     }
 
     if (!form.dateNeeded) {
-      errors.dateNeeded = "Please choose a date.";
+      errors.dateNeeded = t.validation.date;
     }
 
     if (form.quantity < 1 || Number.isNaN(form.quantity)) {
-      errors.quantity = "Quantity must be at least 1.";
+      errors.quantity = t.validation.quantity;
+    }
+
+    if (form.fulfillmentMethod !== FULFILLMENT.DELIVERY) {
+      return errors;
+    }
+
+    const pasteTrimmed = form.mapsLinkPasted.trim();
+
+    if (pasteTrimmed && !isHttpsOrHttpUrl(pasteTrimmed)) {
+      errors.mapsLinkPasted = t.validation.mapsLinkInvalid;
+      return errors;
+    }
+
+    if (form.addressDetails.trim().length < ADDRESS_MIN_CHARS) {
+      errors.addressDetails = t.validation.addressDetailsRequired;
+      return errors;
     }
 
     if (
-      form.fulfillmentMethod === brand.fulfillmentLabels.delivery &&
-      form.location.trim().length < 3
+      !hasLocationMethod({
+        gps,
+        mapsPaste: form.mapsLinkPasted,
+        address: form.addressDetails,
+      })
     ) {
-      errors.location = "Please add delivery location details so we can confirm the area.";
+      errors.deliveryLocationMethod = t.validation.deliveryNeedMapOrDetail;
     }
 
     return errors;
-  }, [
-    form.customerName,
-    form.dateNeeded,
-    form.fulfillmentMethod,
-    form.location,
-    form.phoneNumber,
-    form.quantity,
-  ]);
+  })();
 
   const isValid = Object.keys(validationErrors).length === 0;
 
-  const orderMessage = useMemo(() => {
-    const dateLine = form.dateNeeded || "Not specified";
-    const locationLine = form.location || "Not specified";
-    const notesLine = form.notes || "None";
+  const dateFormattedForMessage = formatNeededDate(language, form.dateNeeded);
 
-    return [
-      `Hello ${brand.name}, I would like to place a dessert pre-order.`,
-      "",
-      "*Customer details*",
-      `- Name: ${form.customerName || "-"}`,
-      `- Phone: ${form.phoneNumber || "-"}`,
-      "",
-      "*Order details*",
-      `- Dessert: ${selectedProduct.name}`,
-      `- Size: ${selectedSize.label} (${selectedSize.serves})`,
-      `- Quantity: ${form.quantity}`,
-      `- Date needed: ${dateLine}`,
-      `- Method: ${form.fulfillmentMethod}`,
-      `- Location: ${
-        form.fulfillmentMethod === brand.fulfillmentLabels.pickup ? "Pickup location to be shared" : locationLine
-      }`,
-      "",
-      "*Extra notes*",
-      `- ${notesLine}`,
-      "",
-      `Estimated total: ${estimatedTotal.toFixed(2)} ${brand.currency}`,
-    ].join("\n");
-  }, [estimatedTotal, form, selectedProduct.name, selectedSize.label, selectedSize.serves]);
+  const dessertName = selectedProduct.name[language];
+  const sizeLine = `${selectedSize.label[language]} (${selectedSize.serves[language]})`;
+  const fulfillmentLabel =
+    form.fulfillmentMethod === FULFILLMENT.PICKUP
+      ? t.form.fulfillmentOptions.pickup
+      : t.form.fulfillmentOptions.delivery;
 
-  const whatsappHref = useMemo(() => {
-    const normalizedPhone = brand.whatsappNumber.replace(/[^\d]/g, "");
-    return `https://api.whatsapp.com/send?phone=${normalizedPhone}&text=${encodeURIComponent(orderMessage)}`;
-  }, [orderMessage]);
+  const orderMessageLines = buildLocalizedOrderMessage({
+    wt,
+    form,
+    gps: form.fulfillmentMethod === FULFILLMENT.DELIVERY ? gps : null,
+    dessertName,
+    sizeLine,
+    qty: form.quantity,
+    dateFormatted: dateFormattedForMessage,
+    fulfillmentLabel,
+    estimated: estimatedTotal,
+  });
+
+  const orderMessage = orderMessageLines.join("\n");
+  const normalizedPhone = brand.whatsappNumber.replace(/\D/g, "");
+  const whatsappHref = `https://api.whatsapp.com/send?phone=${normalizedPhone}&text=${encodeURIComponent(orderMessage)}`;
 
   function updateForm<K extends keyof OrderFormState>(key: K, value: OrderFormState[K]) {
     setForm((previous) => ({ ...previous, [key]: value }));
   }
 
+  function onFulfillmentChange(next: FulfillmentMethod) {
+    if (next === FULFILLMENT.PICKUP) {
+      setGeoUi("idle");
+      setGeoErrorMessage(null);
+      setGps(null);
+    }
+    setForm((previous) =>
+      next === FULFILLMENT.PICKUP
+        ? {
+            ...previous,
+            fulfillmentMethod: next,
+            mapsLinkPasted: "",
+            addressDetails: "",
+          }
+        : { ...previous, fulfillmentMethod: next },
+    );
+  }
+
   function onProductChange(productId: string) {
-    const product = products.find((item) => item.id === productId) ?? products[0];
+    const product = products.find((item) => item.id === productId) ?? initialProduct;
     setForm((previous) => ({
       ...previous,
       productId: product.id,
-      sizeLabel: product.sizes[0].label,
+      sizeId: product.sizes[0].id,
     }));
   }
 
-  useEffect(() => {
-    const onDessertSelect = (event: Event) => {
-      const customEvent = event as CustomEvent<{ productId?: string }>;
-      if (!customEvent.detail?.productId) {
-        return;
-      }
+  function onUseGeolocationClick() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoErrorMessage(geolocationErrorText(language, null, true));
+      setGeoUi("error");
+      return;
+    }
 
-      onProductChange(customEvent.detail.productId);
-      dessertSelectRef.current?.focus();
-    };
+    setGeoUi("loading");
+    setGeoErrorMessage(null);
 
-    window.addEventListener("dessert:selected", onDessertSelect as EventListener);
-    return () => window.removeEventListener("dessert:selected", onDessertSelect as EventListener);
-  }, []);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+        const mapsUrl = buildMapsLatLngUrl(lat, lng);
+        const accuracyM = Number.isFinite(accuracy) ? Math.round(accuracy) : undefined;
+        setGps({ lat, lng, accuracyM, mapsUrl });
+        setGeoUi("success");
+      },
+      (err) => {
+        setGps(null);
+        setGeoUi("error");
+        setGeoErrorMessage(geolocationErrorText(language, err, false));
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    );
+  }
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,199 +442,387 @@ export function OrderForm() {
   }
 
   return (
-    <section id="order-form" className="rounded-[2rem] border border-[#e7d4c2] bg-[#fff8f1] p-6">
-      <div className="mb-4">
-        <h2 className="text-2xl font-semibold tracking-tight text-[#4b2e21]">Place your order</h2>
-        <p className="mt-1 text-sm text-[#7a5f4e]">
-          Fill in your details and continue on WhatsApp.
-        </p>
-      </div>
+    <motion.div
+      id="order-form"
+      className="space-y-3"
+      variants={staggerContainerVariants(reduced)}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div variants={staggerItemVariants(reduced)} className="text-center">
+        <h2 className="text-[18px] font-bold tracking-tight text-[color:var(--accent-cocoa)]">{t.form.title}</h2>
+        <p className="mt-1 text-[11px] leading-snug text-[color:var(--foreground)]/68">{t.form.subtitle}</p>
+      </motion.div>
 
-      <form className="space-y-4" onSubmit={onSubmit} noValidate>
-        <label className="block text-sm font-medium text-[#5f4638]">
-          Customer name
-          <input
-            className={inputStyles}
-            value={form.customerName}
-            onChange={(event) => updateForm("customerName", event.target.value)}
-            required
-          />
-          {attemptedSubmit && validationErrors.customerName ? (
-            <p className="mt-1 text-xs text-[#a44750]">{validationErrors.customerName}</p>
-          ) : null}
-        </label>
-
-        <label className="block text-sm font-medium text-[#5f4638]">
-          Phone number
-          <input
-            className={inputStyles}
-            value={form.phoneNumber}
-            onChange={(event) => updateForm("phoneNumber", event.target.value)}
-            placeholder="+968..."
-            inputMode="tel"
-            required
-          />
-          {attemptedSubmit && validationErrors.phoneNumber ? (
-            <p className="mt-1 text-xs text-[#a44750]">{validationErrors.phoneNumber}</p>
-          ) : null}
-        </label>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-[#5f4638]">
-            Dessert selection
-            <select
-              ref={dessertSelectRef}
-              className={inputStyles}
-              value={form.productId}
-              onChange={(event) => onProductChange(event.target.value)}
-              required
-            >
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm font-medium text-[#5f4638]">
-            Size
-            <select
-              className={inputStyles}
-              value={form.sizeLabel}
-              onChange={(event) => updateForm("sizeLabel", event.target.value)}
-              required
-            >
-              {availableSizes.map((size) => (
-                <option key={size.label} value={size.label}>
-                  {size.label} ({size.serves}) - {size.priceOmr.toFixed(2)} OMR
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-[#5f4638]">
-            Quantity
-            <input
-              className={inputStyles}
-              type="number"
-              min={1}
-              value={form.quantity}
-              onChange={(event) =>
-                updateForm("quantity", Math.max(1, Number(event.target.value) || 1))
-              }
-              required
+      <motion.div
+        key={`summary-${selectedProduct.id}-${selectedSize.id}-${form.quantity}-${form.fulfillmentMethod}`}
+        variants={staggerItemVariants(reduced)}
+        layout
+        className="overflow-hidden rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--card-beige)] shadow-[0_10px_32px_-22px_rgba(65,6,19,0.22)] ring-1 ring-[color:var(--brand-gold-muted)]/20"
+      >
+        <div className="flex gap-3 p-3">
+          <div className="relative h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--brand-burgundy)] shadow-inner ring-1 ring-[color:var(--brand-gold-muted)]/25">
+            <ProductVisual
+              key={selectedProduct.id}
+              product={selectedProduct}
+              language={language}
+              className="absolute inset-0 h-full w-full"
+              sizes="120px"
+              density="compact"
+              aria-hidden
             />
-            {attemptedSubmit && validationErrors.quantity ? (
-              <p className="mt-1 text-xs text-[#a44750]">{validationErrors.quantity}</p>
-            ) : null}
-          </label>
-          <label className="block text-sm font-medium text-[#5f4638]">
-            Date needed
-            <input
-              className={inputStyles}
-              type="date"
-              value={form.dateNeeded}
-              onChange={(event) => updateForm("dateNeeded", event.target.value)}
-              required
-            />
-            {attemptedSubmit && validationErrors.dateNeeded ? (
-              <p className="mt-1 text-xs text-[#a44750]">{validationErrors.dateNeeded}</p>
-            ) : null}
-          </label>
+          </div>
+          <div className="min-w-0 flex-1 py-0.5">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--brand-gold-muted)]">{t.form.summaryTitle}</p>
+            <p className="mt-1 line-clamp-2 text-[14px] font-bold leading-tight text-[color:var(--accent-cocoa)]">
+              {selectedProduct.name[language]}
+            </p>
+            <div className="mt-2 space-y-1 text-[10px] text-[color:var(--foreground)]/68">
+              <p>
+                <span className="font-semibold text-[color:var(--brand-burgundy-soft)]">{t.form.summarySizeLabel}:</span>{" "}
+                {selectedSize.label[language]}
+              </p>
+              <p>
+                <span className="font-semibold text-[color:var(--brand-burgundy-soft)]">{t.form.summaryQtyLabel}:</span>{" "}
+                {formatLocaleQuantity(language, form.quantity)}
+              </p>
+              <p>
+                <span className="font-semibold text-[color:var(--brand-burgundy-soft)]">{t.form.summaryFulfillmentLabel}:</span>{" "}
+                {form.fulfillmentMethod === FULFILLMENT.PICKUP
+                  ? t.form.fulfillmentOptions.pickup
+                  : t.form.fulfillmentOptions.delivery}
+              </p>
+            </div>
+            <AnimatePresence mode="sync">
+              {showLocationAddedInSummary ? (
+                <motion.p
+                  key="loc-sum"
+                  initial={reduced ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: reduced ? 0.12 : 0.22, ease: easePremium }}
+                  className="mt-2 inline-flex rounded-full border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--brand-gold-muted)] ring-1 ring-[color:var(--brand-gold-muted)]/25"
+                >
+                  {t.form.summaryLocationAdded}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
+          </div>
         </div>
-
-        <label className="block text-sm font-medium text-[#5f4638]">
-          Pickup or delivery
-          <select
-            className={inputStyles}
-            value={form.fulfillmentMethod}
-            onChange={(event) =>
-              updateForm("fulfillmentMethod", event.target.value as DeliveryMethod)
-            }
-            required
-          >
-            <option value={brand.fulfillmentLabels.pickup}>
-              {brand.fulfillmentLabels.pickup}
-            </option>
-            <option value={brand.fulfillmentLabels.delivery}>
-              {brand.fulfillmentLabels.delivery}
-            </option>
-          </select>
-        </label>
-
-        <label className="block text-sm font-medium text-[#5f4638]">
-          {form.fulfillmentMethod === brand.fulfillmentLabels.delivery
-            ? "Delivery location"
-            : "Pickup location (optional)"}
-          <input
-            className={inputStyles}
-            value={form.location}
-            onChange={(event) => updateForm("location", event.target.value)}
-            placeholder={
-              form.fulfillmentMethod === brand.fulfillmentLabels.delivery
-                ? "Area / address details"
-                : "Optional pickup point"
-            }
-            required={form.fulfillmentMethod === brand.fulfillmentLabels.delivery}
-          />
-          {attemptedSubmit && validationErrors.location ? (
-            <p className="mt-1 text-xs text-[#a44750]">{validationErrors.location}</p>
-          ) : null}
-        </label>
-
-        <label className="block text-sm font-medium text-[#5f4638]">
-          Notes
-          <textarea
-            className={inputStyles}
-            value={form.notes}
-            onChange={(event) => updateForm("notes", event.target.value)}
-            placeholder="Allergies, sweetness level, preferred pickup time..."
-            rows={3}
-          />
-        </label>
-
-        <div className="rounded-xl bg-[#fff1e2] p-3 text-xs leading-relaxed text-[#7a5f4e]">
-          {brand.orderConfirmationNote}
-        </div>
-
-        <div className="flex items-center justify-between rounded-xl bg-[#fff4ea] px-4 py-3 text-sm">
-          <span className="text-[#7a5f4e]">Estimated total</span>
-          <span className="font-semibold text-[#4b2e21]">
+        <div className="flex items-center justify-between border-t border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-4 py-3">
+          <span className="text-[11px] font-semibold text-[color:var(--foreground)]/65">{t.form.estimatedTotal}</span>
+          <span className="text-[18px] font-bold tabular-nums text-[color:var(--accent-cocoa)]">
             {estimatedTotal.toFixed(2)} {brand.currency}
           </span>
         </div>
+      </motion.div>
 
-        <button
+      <motion.form
+        variants={staggerContainerVariants(reduced)}
+        className="space-y-3"
+        onSubmit={onSubmit}
+        noValidate
+      >
+        <MotionSection title={t.form.sectionCustomer} reduced={reduced}>
+          <label className={labelClass}>
+            {t.form.customerName}
+            <input
+              className={inputStyles}
+              autoComplete="name"
+              value={form.customerName}
+              onChange={(event) => updateForm("customerName", event.target.value)}
+              required
+            />
+            <FieldError
+              show={attemptedSubmit}
+              message={validationErrors.customerName}
+              reduced={reduced}
+            />
+          </label>
+          <label className={labelClass}>
+            {t.form.phone}
+            <input
+              className={inputStyles}
+              value={form.phoneNumber}
+              onChange={(event) => updateForm("phoneNumber", event.target.value)}
+              placeholder="+968…"
+              inputMode="tel"
+              autoComplete="tel"
+              required
+            />
+            <FieldError show={attemptedSubmit} message={validationErrors.phoneNumber} reduced={reduced} />
+          </label>
+        </MotionSection>
+
+        <MotionSection title={t.form.sectionDessert} reduced={reduced}>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <label className={labelClass}>
+              {t.form.dessert}
+              <select
+                className={inputStyles}
+                value={form.productId}
+                onChange={(event) => onProductChange(event.target.value)}
+                required
+              >
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name[language]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={labelClass}>
+              {t.form.size}
+              <select
+                className={inputStyles}
+                value={form.sizeId}
+                onChange={(event) => updateForm("sizeId", event.target.value)}
+                required
+              >
+                {availableSizes.map((size) => (
+                  <option key={size.id} value={size.id}>
+                    {size.label[language]} ({size.serves[language]}) — {size.priceOmr.toFixed(2)}{" "}
+                    {brand.currency}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <FieldError show={attemptedSubmit} message={validationErrors.productId ?? validationErrors.sizeId} reduced={reduced} />
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <label className={labelClass}>
+              {t.form.quantity}
+              <input
+                className={inputStyles}
+                type="number"
+                min={1}
+                value={form.quantity}
+                onChange={(event) => updateForm("quantity", Math.max(1, Number(event.target.value) || 1))}
+                required
+              />
+              <FieldError show={attemptedSubmit} message={validationErrors.quantity} reduced={reduced} />
+            </label>
+            <label className={labelClass}>
+              {t.form.dateNeeded}
+              <input
+                className={inputStyles}
+                type="date"
+                value={form.dateNeeded}
+                onChange={(event) => updateForm("dateNeeded", event.target.value)}
+                required
+              />
+              <FieldError show={attemptedSubmit} message={validationErrors.dateNeeded} reduced={reduced} />
+            </label>
+          </div>
+        </MotionSection>
+
+        <MotionSection title={t.form.sectionFulfillment} reduced={reduced}>
+          <label className={labelClass}>
+            {t.form.fulfillment}
+            <select
+              className={inputStyles}
+              value={form.fulfillmentMethod}
+              onChange={(event) =>
+                onFulfillmentChange(event.target.value as FulfillmentMethod)
+              }
+              required
+            >
+              <option value="pickup">{t.form.fulfillmentOptions.pickup}</option>
+              <option value="delivery">{t.form.fulfillmentOptions.delivery}</option>
+            </select>
+          </label>
+          <FieldError show={attemptedSubmit} message={validationErrors.fulfillmentMethod} reduced={reduced} />
+
+          {form.fulfillmentMethod === FULFILLMENT.PICKUP ? (
+            <motion.div
+              key="pickup-note"
+              layout={false}
+              initial={reduced ? false : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduced ? 0.1 : 0.2, ease: easePremium }}
+              className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-3 py-2.5 text-[10px] leading-relaxed text-[color:var(--foreground)]/72"
+            >
+              {t.form.pickupDetailsWhatsappNote}
+            </motion.div>
+          ) : null}
+
+          {form.fulfillmentMethod === FULFILLMENT.DELIVERY ? (
+            <motion.div
+              key="delivery-fields"
+              layout={false}
+              initial={reduced ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduced ? 0.12 : 0.22, ease: easePremium }}
+              className="space-y-2.5 border-t border-[color:var(--border-soft)] pt-2.5"
+            >
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-gold-muted)]">
+                {t.form.sectionDeliveryLocation}
+              </h4>
+
+              <div className="space-y-2">
+                <motion.button
+                  type="button"
+                  onClick={onUseGeolocationClick}
+                  disabled={geoUi === "loading"}
+                  whileTap={tapScale}
+                  transition={{ duration: 0.15 }}
+                  className="flex min-h-11 w-full items-center justify-center rounded-xl border border-[color:var(--brand-gold-muted)]/50 bg-[color:var(--brand-burgundy)] px-3 text-[12px] font-semibold text-[color:var(--card-cream)] shadow-sm transition-opacity disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {geoUi === "loading" ? t.form.detectingLocation : t.form.useCurrentLocation}
+                </motion.button>
+
+                <AnimatePresence mode="sync">
+                  {geoUi === "success" && gps ? (
+                    <motion.div
+                      key="geo-success"
+                      initial={reduced ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: reduced ? 0.12 : 0.2, ease: easePremium }}
+                      className="space-y-2 rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-3 py-2.5 ring-1 ring-[color:var(--brand-gold-muted)]/25"
+                    >
+                      <p className="text-[11px] font-semibold text-[color:var(--brand-gold-muted)]">{t.form.locationAddedSuccess}</p>
+                      {gps.accuracyM !== undefined ? (
+                        <p className="text-[9px] text-[color:var(--foreground)]/58">±{gps.accuracyM} m</p>
+                      ) : null}
+                      <div className="rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--card-beige)]/90 px-2.5 py-2">
+                        <p className="text-[9px] font-semibold uppercase tracking-wide text-[color:var(--brand-burgundy-soft)]">
+                          {t.form.locationGpsLine}
+                        </p>
+                        <a
+                          href={gps.mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 break-all text-[10px] text-[color:var(--brand-burgundy-soft)] underline decoration-[color:var(--border-soft)] underline-offset-2"
+                        >
+                          {gps.mapsUrl}
+                        </a>
+                        <motion.a
+                          href={gps.mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          whileTap={tapScale}
+                          className="mt-2 inline-flex min-h-9 items-center rounded-full bg-[color:var(--brand-burgundy)] px-4 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--card-cream)] ring-1 ring-[color:var(--border-soft)]"
+                        >
+                          {t.form.openMap}
+                        </motion.a>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+
+                <AnimatePresence mode="sync">
+                  {geoUi === "error" && geoErrorMessage ? (
+                    <motion.div
+                      key="geo-error"
+                      role="alert"
+                      initial={reduced ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: reduced ? 0.12 : 0.18, ease: easePremium }}
+                      className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-beige)] px-3 py-2 text-[10px] leading-snug text-[color:var(--brand-burgundy-soft)]"
+                    >
+                      {geoErrorMessage}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+
+              <label className={labelClass}>
+                {t.form.googleMapsLinkLabel}
+                <span className="mt-0.5 block text-[9px] font-normal text-[color:var(--foreground)]/55">
+                  {t.form.pasteGoogleMapsLinkHint}
+                </span>
+                <input
+                  className={inputStyles}
+                  type="url"
+                  inputMode="url"
+                  value={form.mapsLinkPasted}
+                  onChange={(event) => updateForm("mapsLinkPasted", event.target.value)}
+                  placeholder="https://maps.google.com/…"
+                />
+                <FieldError show={attemptedSubmit} message={validationErrors.mapsLinkPasted} reduced={reduced} />
+              </label>
+
+              <label className={labelClass}>
+                {t.form.addressDetailsLabel}
+                <textarea
+                  className={`${inputStyles} min-h-[4.75rem] resize-y py-2`}
+                  required
+                  value={form.addressDetails}
+                  onChange={(event) => updateForm("addressDetails", event.target.value)}
+                  placeholder={t.form.addressDetailsPlaceholder}
+                  rows={3}
+                />
+                <FieldError show={attemptedSubmit} message={validationErrors.addressDetails} reduced={reduced} />
+              </label>
+
+              <FieldError
+                show={attemptedSubmit}
+                message={validationErrors.deliveryLocationMethod}
+                reduced={reduced}
+              />
+            </motion.div>
+          ) : null}
+        </MotionSection>
+
+        <MotionSection title={t.form.sectionNotes} reduced={reduced}>
+          <label className={labelClass}>
+            {t.form.notes}
+            <textarea
+              className={`${inputStyles} min-h-[4.5rem] resize-y py-2`}
+              value={form.notes}
+              onChange={(event) => updateForm("notes", event.target.value)}
+              placeholder={t.form.notesPlaceholder}
+              rows={3}
+            />
+          </label>
+          <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-3 py-2 text-[10px] leading-relaxed text-[color:var(--foreground)]/72">
+            {t.form.orderConfirmationNote}
+          </div>
+        </MotionSection>
+
+        <motion.button
           type="submit"
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#4b2e21] px-4 py-3 text-sm font-semibold text-[#fff6eb] transition hover:bg-[#3d241a] disabled:cursor-not-allowed disabled:bg-[#8b6f60]"
-          disabled={!isValid && attemptedSubmit}
+          variants={staggerItemVariants(reduced)}
+          whileTap={tapScale}
+          transition={{ duration: 0.15 }}
+          className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-[color:var(--brand-gold-muted)]/45 bg-[color:var(--brand-burgundy)] px-4 py-3 text-[13px] font-semibold text-[color:var(--card-cream)] shadow-[0_10px_28px_-14px_rgba(65,6,19,0.45)] ring-1 ring-[color:var(--border-soft)] transition-[filter] hover:brightness-[1.03] focus-visible:outline-none active:brightness-95"
         >
-          Send order on WhatsApp
-        </button>
+          {t.form.sendWhatsapp}
+        </motion.button>
 
-        <p className="text-center text-xs text-[#7a5f4e]">
-          If WhatsApp does not open, copy your order message and send it manually.
-        </p>
+        <p className="px-1 text-center text-[10px] leading-relaxed text-[color:var(--foreground)]/62">{t.form.fallback}</p>
 
         {isValid ? (
-          <button
+          <motion.button
             type="button"
+            variants={staggerItemVariants(reduced)}
             onClick={onCopyMessage}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[#ccb39a] bg-[#fffaf4] px-4 py-3 text-sm font-semibold text-[#5a3829] transition hover:bg-[#fff2e6]"
+            whileTap={tapScale}
+            transition={{ duration: 0.15 }}
+            className="flex min-h-11 w-full items-center justify-center rounded-2xl border-2 border-[color:var(--brand-gold)] bg-[color:var(--card-cream)] px-4 py-2.5 text-[12px] font-semibold text-[color:var(--brand-burgundy)] hover:bg-[color:var(--card-beige)] focus-visible:outline-none active:bg-[color:var(--card-beige)]"
           >
-            Copy order message
-          </button>
+            {t.form.copyMessage}
+          </motion.button>
         ) : null}
 
-        {copiedMessage ? (
-          <p className="text-center text-xs font-medium text-[#4b7f4f]">
-            Order message copied successfully.
-          </p>
-        ) : null}
-      </form>
-    </section>
+        <AnimatePresence mode="sync">
+          {copiedMessage ? (
+            <motion.p
+              key="copied"
+              role="status"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduced ? 0.12 : 0.2, ease: easePremium }}
+              className="text-center text-[10px] font-medium text-[color:var(--brand-gold-muted)]"
+            >
+              {t.form.copied}
+            </motion.p>
+          ) : null}
+        </AnimatePresence>
+      </motion.form>
+    </motion.div>
   );
 }

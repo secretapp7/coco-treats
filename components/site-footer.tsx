@@ -1,14 +1,44 @@
 import { brand } from "@/config/brand";
+import type { AppLanguage } from "@/config/translations";
+import { translations } from "@/config/translations";
 
-export function SiteFooter() {
+type SiteFooterProps = {
+  language: AppLanguage;
+  variant?: "default" | "compact";
+};
+
+export function SiteFooter({ language, variant = "default" }: SiteFooterProps) {
+  const t = translations[language];
+
+  if (variant === "compact") {
+    return (
+      <footer className="mt-5 border-t border-[color:var(--border-soft)]/90 pt-3 text-center text-[10px] leading-relaxed text-[color:var(--foreground)]/58">
+        <p className="font-medium text-[color:var(--brand-burgundy-soft)]">{brand.instagramHandle}</p>
+        <p className="mt-1 text-[color:var(--foreground)]/55">
+          {brand.city[language]}
+          <span className="text-[color:var(--brand-gold-muted)]" aria-hidden>
+            {" "}
+            ·{" "}
+          </span>
+          {t.footer.preorder}
+        </p>
+      </footer>
+    );
+  }
+
   return (
-    <footer className="mt-12 border-t border-[#e7d4c2] pt-6 pb-8 text-center text-sm text-[#7a5f4e]">
-      <p className="font-medium text-[#4b2e21]">{brand.name}</p>
-      <p className="mt-1">Location: {brand.city}</p>
-      <p className="mt-1">Made fresh by pre-order.</p>
-      <p className="mt-3 text-xs text-[#9a7a63]">
-        DM-ready desserts for your feed and special moments. {brand.instagramHandle}
+    <footer className="mt-8 border-t border-[color:var(--border-soft)] pb-10 pt-4 text-center text-[11px] text-[color:var(--foreground)]/62">
+      <p className="font-semibold text-[color:var(--accent-cocoa)]">{brand.name[language]}</p>
+      <p className="mt-1">
+        <span className="text-[color:var(--foreground)]/55">{t.footer.location}</span>
+        <span className="text-[color:var(--brand-gold-muted)]" aria-hidden>
+          {" "}
+          ·{" "}
+        </span>
+        {brand.city[language]}
       </p>
+      <p className="mt-1 text-[10px] text-[color:var(--foreground)]/52">{t.footer.igLine}</p>
+      <p className="mt-2 text-[11px] text-[color:var(--foreground)]/45">{brand.instagramHandle}</p>
     </footer>
   );
 }
