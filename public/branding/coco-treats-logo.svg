@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1400" viewBox="0 0 2000 1400" role="img" aria-labelledby="title desc">
+  <title id="title">Coco Treats Logo</title>
+  <desc id="desc">Transparent vector-style logo for Coco Treats with a CT monogram, whisk icon, gold ornament, and elegant serif wordmark.</desc>
+  <defs>
+    <style>
+      :root {
+        --burgundy: #72001E;
+        --gold: #D9B55D;
+      }
+      .brand-text {
+        font-family: "Cormorant Garamond", "Bodoni 72", "Didot", "Georgia", serif;
+        font-weight: 500;
+        fill: var(--burgundy);
+        letter-spacing: 0.01em;
+      }
+      .monogram {
+        font-family: "Cormorant Garamond", "Bodoni 72", "Didot", "Georgia", serif;
+        font-weight: 600;
+        fill: var(--burgundy);
+      }
+      .gold-fill { fill: var(--gold); }
+      .gold-stroke {
+        fill: none;
+        stroke: var(--gold);
+        stroke-width: 8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .gold-stroke-thin {
+        fill: none;
+        stroke: var(--gold);
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+
+  <!-- CT Monogram -->
+  <g id="ct-monogram" transform="translate(0 0)">
+    <text class="monogram" x="1000" y="500" font-size="430" text-anchor="middle">C</text>
+    <text class="monogram" x="1067" y="590" font-size="405" text-anchor="middle">T</text>
+
+    <!-- Elegant upper T flourish -->
+    <path class="gold-stroke-thin" d="M 885 455 C 940 395, 1058 425, 1144 404 C 1198 391, 1238 358, 1222 338" />
+
+    <!-- Small whisk icon beside monogram -->
+    <g id="whisk" transform="translate(785 455) rotate(-17)">
+      <path class="gold-stroke" d="M 0 0 C -45 -72, -26 -148, 24 -156 C 78 -165, 101 -83, 42 5" />
+      <path class="gold-stroke-thin" d="M 9 -3 C -23 -69, -11 -128, 22 -146" />
+      <path class="gold-stroke-thin" d="M 22 -2 C 8 -69, 11 -126, 28 -150" />
+      <path class="gold-stroke-thin" d="M 35 1 C 38 -67, 35 -125, 31 -151" />
+      <path class="gold-stroke-thin" d="M 46 7 C 65 -57, 59 -116, 35 -148" />
+      <path class="gold-stroke" d="M 23 6 L 23 150" />
+      <rect class="gold-fill" x="2" y="143" width="42" height="92" rx="18" />
+      <circle fill="#FFF7E6" cx="23" cy="209" r="5" />
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <g id="wordmark">
+    <text class="brand-text" x="1000" y="885" font-size="238" text-anchor="middle">Coco Treats</text>
+  </g>
+
+  <!-- Decorative ornament below wordmark -->
+  <g id="ornament" transform="translate(1000 1018)">
+    <path class="gold-stroke-thin" d="M -250 0 C -185 35, -122 34, -62 2" />
+    <path class="gold-stroke-thin" d="M 62 2 C 122 34, 185 35, 250 0" />
+    <path class="gold-fill" d="M 0 -46 C 16 -14, 31 -3, 58 0 C 31 3, 16 14, 0 46 C -16 14, -31 3, -58 0 C -31 -3, -16 -14, 0 -46 Z" />
+  </g>
+</svg>
