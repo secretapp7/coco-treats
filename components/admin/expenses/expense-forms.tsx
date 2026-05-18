@@ -3,6 +3,7 @@
 import { ExpenseCategory } from "@prisma/client";
 
 import { AdminActionForm } from "@/components/admin/action-form";
+import type { ExpenseAdminRecord } from "@/lib/admin/expense-admin-record";
 import {
   createExpenseFormAction,
   deleteExpenseFormAction,
@@ -61,20 +62,7 @@ export function ExpenseCreateForm() {
   );
 }
 
-export function ExpenseEditForm({
-  expense,
-}: {
-  expense: {
-    id: string;
-    category: ExpenseCategory;
-    title: string;
-    amountOmr: unknown;
-    expenseDate: Date;
-    notes: string | null;
-    voidedAt: Date | null;
-    voidReason: string | null;
-  };
-}) {
+export function ExpenseEditForm({ expense }: { expense: ExpenseAdminRecord }) {
   const voided = Boolean(expense.voidedAt);
   return (
     <div className="space-y-8">
