@@ -2,58 +2,91 @@
 
 ## Current phase
 
+**Phase 4A — Admin products & categories management (completed)**
+
+- **Routes:** `/admin/products`, `/admin/products/new`, `/admin/products/[id]`, `/admin/categories`, `/admin/categories/new`, `/admin/categories/[id]`.
+- **Data:** Lists and forms read/write real `Product`, `ProductSize`, `ProductImage`, and `Category` records via Prisma.
+- **Server actions:** `createProduct`, `updateProduct`, size and image CRUD, `createCategory`, `updateCategory` — all gated with `requireAdmin()`, Zod validation, `revalidatePath` for `/admin` and relevant admin URLs, friendly errors (including duplicate slug), no client-facing stack traces.
+- **Images:** Admin stores image **URL/path strings** (for example `/images/products/tiramisu/main.jpg`). There is no file upload or cloud storage in this phase.
+- **Public storefront:** The customer menu and ordering flow **still use static** catalog data (`data/products.ts`, etc.). Syncing the live site to database products is a **later phase**; this phase only delivers the admin catalog UI.
+
+**Phase 3 — Admin login, dashboard shell, order management (completed)**
+
+- **Authentication:** bcrypt (`bcryptjs`) password check against `ADMIN_PASSWORD_HASH`; HTTP-only cookie with HS256 JWT signed by `ADMIN_SESSION_SECRET` (library: `jose`). Same email must match `ADMIN_EMAIL`.
+- **Protection:** `middleware.ts` gates `/admin/*` except `/admin/login`. Dashboard routes also call `requireAdmin()` in the admin shell layout.
+- **Routes live:** `/admin/login`, `/admin` (metrics + recent orders), `/admin/orders` (filters, search, pagination), `/admin/orders/[id]` (detail, status/fee updates, cancel, WhatsApp/maps/copy).
+- **Admin nav:** Dashboard, Orders, **Categories**, and **Products** are enabled; Offers, Expenses, Reviews, and Settings remain placeholders (“soon”) until later phases.
+- **Customer storefront** unchanged; no payment gateway or customer accounts.
+
 **Phase 2 — Persist customer orders before WhatsApp (completed)**
 
-- Order submissions run `createOrderAction` (server action) which validates payload, saves `Customer`, `Order`, and `OrderItem` to PostgreSQL, then returns a WhatsApp URL built from the same one-language template as before.
-- The storefront still renders menu/product data from **`data/products.ts`**; persisted rows link catalog IDs from the seeded Prisma catalog when sizes align with the seed.
-- Saving runs **before** `window.open` for the primary submit path.
-- **No admin UI**, **no payments**, **no customer login**.
-- WhatsApp remains the fulfillment channel after save.
+- See “Order flow” below.
 
 **Phase 1 — Database foundation (done)**
 
-- PostgreSQL + Prisma schema, singleton client at `lib/db/prisma.ts`, seed categories/products/settings.
+- PostgreSQL + Prisma, `lib/db/prisma.ts`, seed script.
 
 ---
 
-## Database setup
+## Admin environment variables
 
-1. Create a Neon PostgreSQL database and copy the connection string (SSL).
-2. In `.env.local` (local) or Vercel env (production), set:
+Set in `.env.local` (local) and in **Vercel → Project → Settings → Environment Variables** for Production (and Preview if needed):
 
-   `DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"`
+| Variable | Purpose |
+|----------|---------|
+| `ADMIN_EMAIL` | Allowed login email (compared case-insensitively). |
+| `ADMIN_PASSWORD_HASH` | bcrypt hash of the admin password (never the plain password). |
+| `ADMIN_SESSION_SECRET` | Secret for signing the session JWT — **at least 32 characters** (e.g. `openssl rand -hex 32`). |
 
-3. `npm run prisma:generate`
+**Generate `ADMIN_PASSWORD_HASH` (run locally, after `npm install`):**
 
-4. `npm run prisma:push`
+```bash
+node -e "const b=require('bcryptjs'); console.log(b.hashSync('YOUR_STRONG_PASSWORD', 12));"
+```
 
-5. `npm run prisma:seed` (keeps catalog rows aligned with current static products/sizes).
+Copy the printed string into `ADMIN_PASSWORD_HASH` (one line, no quotes in `.env` unless the value itself needs escaping).
 
-Optional: `npm run prisma:studio` to inspect `orders`, `customers`, `order_items`.
+**Generate `ADMIN_SESSION_SECRET`:**
 
-Admin-related placeholders (later): `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET` — see `.env.example`.
+```bash
+openssl rand -hex 32
+```
 
----
-
-## Order flow (today)
-
-1. Customer completes the usual form (English or Arabic UI; WhatsApp preview text stays in **that UI language**, unchanged behavior).
-2. Client calls **`createOrderAction`** with normalized fields (`productSizeId` = static size id).
-3. Server validates (`server/orders/order-validation.ts` + Zod), resolves prices/names from `data/products.ts`, matches Prisma **`Product`** / **`ProductSize`** when present (`server/orders/order-service.ts`).
-4. Server assigns a readable **`publicId`** (`CT-YYYYMMDD-XXXX`), writes **`Order.whatsappMessage`** (same structured copy as WhatsApp opens), **`deliveryFeeOmr`**: `null`, **`totalOmr`** = dessert subtotal.
-5. On success, the client opens the returned **`whatsappUrl`**; on failure it shows localized error text and optionally **“send on WhatsApp anyway”** (uses the locally built client message).
-
----
-
-## Planned admin routes (not built yet)
-
-- `/admin` — dashboard  
-- `/admin/orders`, `/admin/products`, `/admin/categories`, `/admin/offers`, `/admin/expenses`, `/admin/reviews`, `/admin/settings`
+Do **not** commit real secrets. Keep `.env.example` as placeholders only.
 
 ---
 
-## Later work (not done)
+## How to test admin locally
 
-- Migrate catalog reads off `data/products.ts` to Prisma-backed APIs  
-- Authenticated admin for order status edits (`OrderStatus`, `DeliveryStatus`, `PaymentStatus`)  
-- Payment gateway, customer accounts, automated `prisma migrate` hardening  
+1. Set `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET` in `.env.local`.
+2. `npm run dev`
+3. Open `http://localhost:3000/admin` — you should redirect to `/admin/login`.
+4. Sign in with the email and **plain** password matching your hash.
+5. Use **Dashboard** and **Orders**; open an order, change statuses or delivery fee, verify updates in `npm run prisma:studio` or by reloading the list.
+6. Use **Categories** and **Products** to create and edit records; confirm changes in Prisma Studio. **Do not** expect the public `/menu` to change until a future storefront sync phase.
+
+**Logout** clears the session cookie via server action.
+
+---
+
+## Database setup (unchanged)
+
+1. Neon PostgreSQL + `DATABASE_URL` with `sslmode=require`.
+2. `npm run prisma:generate` → `npm run prisma:push` → `npm run prisma:seed` when needed.
+
+---
+
+## Order flow (customer)
+
+1. Customer submits the order form (EN/AR).
+2. **`createOrderAction`** validates and saves to Neon (`Customer`, `Order`, `OrderItem`), then returns a WhatsApp URL.
+3. Client opens WhatsApp; optional fallback if save fails.
+
+---
+
+## Next (not implemented)
+
+- Admin CRUD for offers, expenses, reviews, settings (nav placeholders only).
+- Optional: migrate from `middleware` to Next.js “proxy” if/when required by your Next version.
+- Storefront: load catalog from database (replace static `data/products.ts`), after Phase 4A stabilization.
+- Payments, customer login, `prisma migrate` hardening for production.
