@@ -236,6 +236,9 @@ model Order {
   totalOmr             Decimal            @db.Decimal(12, 3)
   whatsappMessage      String             @db.Text
   cancelReason         String?
+  /// When set, the order is hidden from default admin lists unless “Archived” filter is chosen.
+  archivedAt           DateTime?
+  adminNote            String?            @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -249,6 +252,7 @@ model Order {
   @@index([fulfillmentMethod])
   @@index([dateNeeded])
   @@index([customerPhone])
+  @@index([archivedAt])
   @@map("orders")
 }
 
@@ -284,10 +288,14 @@ model Expense {
   amountOmr   Decimal          @db.Decimal(12, 3)
   expenseDate DateTime         @db.Date
   notes       String?
+  /// When set, the expense is excluded from profit totals (voided / cancelled entry).
+  voidedAt    DateTime?
+  voidReason  String?          @db.Text
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   @@index([expenseDate])
+  @@index([voidedAt])
   @@map("expenses")
 }
 
