@@ -7,8 +7,9 @@ const links: { href: string; label: string; disabled?: boolean }[] = [
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/products", label: "Products" },
-  { href: "/admin/offers", label: "Offers", disabled: true },
-  { href: "/admin/expenses", label: "Expenses", disabled: true },
+  { href: "/admin/offers", label: "Offers" },
+  { href: "/admin/expenses", label: "Expenses" },
+  { href: "/admin/reports/profit", label: "Profit report" },
   { href: "/admin/reviews", label: "Reviews", disabled: true },
   { href: "/admin/settings", label: "Settings", disabled: true },
 ];

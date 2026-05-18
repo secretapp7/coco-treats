@@ -8,6 +8,7 @@ import {
   createProductSizeFormAction,
   deactivateProductSizeFormAction,
   deleteProductImageFormAction,
+  deleteProductSizeFormAction,
   updateProductFormAction,
   updateProductImageFormAction,
   updateProductSizeFormAction,
@@ -165,9 +166,19 @@ export function ProductSizesSection({ productId, sizes }: { productId: string; s
               key={s.id}
               className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-beige)] p-3"
             >
-              <div className="mb-2 flex flex-wrap gap-3 text-[11px] text-[color:var(--muted-text)]">
+              <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-[color:var(--muted-text)]">
+                <span
+                  className={
+                    s.isActive
+                      ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-950"
+                      : "rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-800"
+                  }
+                >
+                  {s.isActive ? "Active" : "Inactive"}
+                </span>
                 <span>
-                  Est. profit: <strong className="font-mono text-[color:var(--foreground)]">{profit}</strong> OMR
+                  Est. profit:{" "}
+                  <strong className="font-mono text-[color:var(--foreground)]">{profit}</strong> OMR
                 </span>
                 {margin !== null ? (
                   <span>
@@ -227,18 +238,44 @@ export function ProductSizesSection({ productId, sizes }: { productId: string; s
                   </button>
                 </div>
               </AdminActionForm>
-              {s.isActive ? (
-                <AdminActionForm action={deactivateProductSizeFormAction} className="mt-2 inline-block">
-                  <input type="hidden" name="id" value={s.id} />
-                  <input type="hidden" name="productId" value={productId} />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
-                  >
-                    Deactivate
-                  </button>
-                </AdminActionForm>
-              ) : null}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {s.isActive ? (
+                  <AdminActionForm action={deactivateProductSizeFormAction} className="inline-block">
+                    <input type="hidden" name="id" value={s.id} />
+                    <input type="hidden" name="productId" value={productId} />
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
+                    >
+                      Deactivate
+                    </button>
+                  </AdminActionForm>
+                ) : null}
+              </div>
+              <AdminActionForm
+                action={deleteProductSizeFormAction}
+                className="mt-3 space-y-2 rounded-lg border border-[color:var(--brand-burgundy-soft)]/35 bg-[color:var(--card-cream)] p-2"
+              >
+                <input type="hidden" name="id" value={s.id} />
+                <input type="hidden" name="productId" value={productId} />
+                <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--brand-gold-muted)]">
+                  Delete size permanently
+                </p>
+                <p className="text-[11px] text-[color:var(--muted-text)]">
+                  Only allowed when this size was never referenced on orders. Prefer Deactivate for catalog changes that
+                  should stay historical.
+                </p>
+                <label className="flex items-start gap-2 text-[11px] text-[color:var(--muted-text)]">
+                  <input type="checkbox" name="confirmDelete" required className="mt-1 h-4 w-4 shrink-0" />
+                  <span>I understand this cannot be undone and may fail if orders reference this size.</span>
+                </label>
+                <button
+                  type="submit"
+                  className="rounded-lg border-2 border-[color:var(--brand-burgundy-soft)] bg-white px-3 py-2 text-[11px] font-bold text-[color:var(--brand-burgundy)]"
+                >
+                  Delete size permanently
+                </button>
+              </AdminActionForm>
             </div>
           );
         })}

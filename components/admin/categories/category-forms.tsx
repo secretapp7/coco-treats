@@ -2,10 +2,18 @@
 
 import { AdminActionForm } from "@/components/admin/action-form";
 import {
+  activateCategoryFormAction,
   createCategoryFormAction,
+  deactivateCategoryFormAction,
+  deleteCategoryFormAction,
   updateCategoryFormAction,
 } from "@/lib/admin/actions/category-actions";
 
+const activateBtn =
+  "rounded-xl bg-[color:var(--brand-burgundy)] px-4 py-2 text-sm font-semibold text-[color:var(--card-cream)] hover:brightness-110";
+
+const deactivateBtn =
+  "rounded-xl border border-[color:var(--border-soft)] px-4 py-2 text-sm font-semibold text-[color:var(--brand-burgundy)] hover:bg-[color:var(--card-cream)]";
 const field =
   "mt-1 w-full rounded-lg border border-[color:var(--border-soft)] bg-white px-2 py-1.5 text-sm";
 const lbl = "block text-[11px] font-semibold text-[color:var(--muted-text)]";
@@ -114,5 +122,57 @@ export function CategoryEditForm({
         Save category
       </button>
     </AdminActionForm>
+  );
+}
+
+export function CategoryLifecycleSection({ categoryId, slug }: { categoryId: string; slug: string }) {
+  return (
+    <div className="mt-8 max-w-2xl space-y-4">
+      <div>
+        <h2 className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand-gold-muted)]">
+          Activation & deletion
+        </h2>
+        <p className="mt-1 text-[11px] text-[color:var(--muted-text)]">
+          The main form includes the Active checkbox; these shortcuts follow the same rules for quick operations.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <AdminActionForm action={activateCategoryFormAction} className="inline">
+          <input type="hidden" name="id" value={categoryId} />
+          <button type="submit" className={activateBtn}>
+            Activate
+          </button>
+        </AdminActionForm>
+        <AdminActionForm action={deactivateCategoryFormAction} className="inline">
+          <input type="hidden" name="id" value={categoryId} />
+          <button type="submit" className={deactivateBtn}>
+            Deactivate
+          </button>
+        </AdminActionForm>
+      </div>
+
+      <div className="rounded-xl border border-[color:var(--brand-burgundy-soft)]/40 bg-[color:var(--card-cream)] p-4">
+        <h3 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--brand-gold-muted)]">
+          Delete category permanently
+        </h3>
+        <p className="mt-1 text-[11px] text-[color:var(--muted-text)]">
+          Only when no products reference this category. Otherwise deactivate or move products first. Type slug{" "}
+          <span className="font-mono">{slug}</span> exactly to confirm.
+        </p>
+        <AdminActionForm action={deleteCategoryFormAction} className="mt-3 space-y-2">
+          <input type="hidden" name="id" value={categoryId} />
+          <label className={lbl}>
+            Confirm slug (lowercase)
+            <input name="confirmSlug" autoComplete="off" className={`${field} font-mono`} />
+          </label>
+          <button
+            type="submit"
+            className="rounded-xl border-2 border-[color:var(--brand-burgundy-soft)] bg-white px-4 py-2 text-sm font-bold text-[color:var(--brand-burgundy)]"
+          >
+            Delete category permanently
+          </button>
+        </AdminActionForm>
+      </div>
+    </div>
   );
 }
