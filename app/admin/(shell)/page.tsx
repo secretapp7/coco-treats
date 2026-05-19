@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { getAvailabilityDashboardBrief } from "@/lib/admin/data/availability-dashboard";
 import { getAdminDashboardSnapshot } from "@/lib/admin/dashboard-data";
 
 function money(n: number) {
@@ -7,7 +8,7 @@ function money(n: number) {
 }
 
 export default async function AdminDashboardPage() {
-  const data = await getAdminDashboardSnapshot();
+  const [data, avail] = await Promise.all([getAdminDashboardSnapshot(), getAvailabilityDashboardBrief()]);
   const p = data.profitBrief;
 
   return (
@@ -87,6 +88,69 @@ export default async function AdminDashboardPage() {
           >
             Offers
           </Link>
+          <Link
+            href="/admin/availability"
+            className="text-[color:var(--brand-burgundy-soft)] underline-offset-2 hover:underline"
+          >
+            Availability
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--card-beige)] p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand-gold-muted)]">
+            Capacity & kitchen prep (UTC)
+          </h2>
+          <Link
+            href="/admin/availability"
+            className="text-xs font-semibold text-[color:var(--brand-burgundy-soft)] underline-offset-2 hover:underline"
+          >
+            Manage availability
+          </Link>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <MiniStat
+            title={`Today · ${avail.todayIso}`}
+            value={`${avail.todayRow.usedSlots} / ${avail.todayRow.maxOrders > 0 ? avail.todayRow.maxOrders : "∞"} · ${avail.todayRow.status}`}
+          />
+          <MiniStat
+            title={`Tomorrow · ${avail.tomorrowIso}`}
+            value={`${avail.tomorrowRow.usedSlots} / ${avail.tomorrowRow.maxOrders > 0 ? avail.tomorrowRow.maxOrders : "∞"} · ${avail.tomorrowRow.status}`}
+          />
+          <MiniStat
+            title="Next fully booked day"
+            value={
+              avail.nextFullyBooked
+                ? `${avail.nextFullyBooked.dateIso} (${avail.nextFullyBooked.status})`
+                : "None in scan window"
+            }
+          />
+          <MiniStat
+            title="Next scheduled closures"
+            value={
+              avail.upcomingClosed[0]
+                ? `${avail.upcomingClosed[0].startsAt.toISOString().slice(0, 10)}→${avail.upcomingClosed[0].endsAt.toISOString().slice(0, 10)}`
+                : "—"
+            }
+          />
+        </div>
+        <div className="mt-3 rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--brand-gold-muted)]">
+            Tomorrow production mix (non-cancelled)
+          </p>
+          {avail.tomorrowProduction.length === 0 ? (
+            <p className="mt-1 text-[11px] text-[color:var(--muted-text)]">Nothing scheduled yet.</p>
+          ) : (
+            <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-[11px] text-[color:var(--foreground)]">
+              {avail.tomorrowProduction.slice(0, 12).map((row) => (
+                <li key={row.label} className="flex justify-between gap-2 tabular-nums">
+                  <span className="min-w-0 truncate">{row.label}</span>
+                  <span className="shrink-0 font-semibold">×{row.qty}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

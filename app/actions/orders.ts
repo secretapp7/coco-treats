@@ -5,6 +5,7 @@ import {
   type CreateOrderPayload,
 } from "@/server/orders/order-validation";
 import { persistOrder } from "@/server/orders/order-service";
+import { OrderAvailabilityBlockedError } from "@/lib/availability/order-availability-error";
 
 export type CreateOrderActionSuccess = {
   success: true;
@@ -41,7 +42,14 @@ export async function createOrderAction(
       whatsappMessage: saved.whatsappMessage,
       whatsappUrl: saved.whatsappUrl,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof OrderAvailabilityBlockedError) {
+      const msg = payload.language === "ar" ? error.messageAr : error.messageEn;
+      return {
+        success: false,
+        errorMessage: msg,
+      };
+    }
     console.error("[createOrderAction] Persist failed — see server logs.");
     return {
       success: false,
