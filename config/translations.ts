@@ -146,6 +146,9 @@ type Translation = {
     summaryDeliveryFeeConfirmed: string;
     summaryFulfillmentInline: string;
     summaryPickupLine: string;
+    availabilityChecking: string;
+    availabilityPickDate: string;
+    availabilityBlockedSubmit: string;
   };
   validation: {
     fullName: string;
@@ -386,6 +389,9 @@ export const translations: Record<AppLanguage, Translation> = {
       summaryDeliveryFeeConfirmed: "Confirmed on WhatsApp",
       summaryFulfillmentInline: "Fulfillment",
       summaryPickupLine: "Pickup • details on WhatsApp",
+      availabilityChecking: "Checking date availability…",
+      availabilityPickDate: "Pick a date to see if we still have capacity.",
+      availabilityBlockedSubmit: "Choose an available date before sending to WhatsApp.",
     },
     validation: {
       fullName: "Please enter your full name.",
@@ -626,6 +632,9 @@ export const translations: Record<AppLanguage, Translation> = {
       summaryDeliveryFeeConfirmed: "تُحدَّد عبر واتساب",
       summaryFulfillmentInline: "التسليم",
       summaryPickupLine: "استلام • التفاصيل على واتساب",
+      availabilityChecking: "جاري التحقق من توفر التاريخ…",
+      availabilityPickDate: "اختر تاريخًا لمعرفة ما إذا كان هناك طاقة استيعاب.",
+      availabilityBlockedSubmit: "اختر تاريخًا متاحًا قبل الإرسال إلى واتساب.",
     },
     validation: {
       fullName: "يرجى إدخال الاسم الكامل.",
