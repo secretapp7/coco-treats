@@ -79,11 +79,14 @@ type Translation = {
   productCard: {
     startingFrom: string;
     view: string;
+    soldOut: string;
   };
   productPage: {
     backToMenu: string;
     notFoundTitle: string;
     notFoundDescription: string;
+    soldOutBadge: string;
+    soldOutMessage: string;
     orderThisDessert: string;
     preorderNote: string;
     trustBadge: string;
@@ -149,6 +152,8 @@ type Translation = {
     availabilityChecking: string;
     availabilityPickDate: string;
     availabilityBlockedSubmit: string;
+    productUnavailable: string;
+    chooseAnotherProduct: string;
   };
   validation: {
     fullName: string;
@@ -322,11 +327,14 @@ export const translations: Record<AppLanguage, Translation> = {
     productCard: {
       startingFrom: "From",
       view: "View",
+      soldOut: "Sold out",
     },
     productPage: {
       backToMenu: "Menu",
       notFoundTitle: "Dessert not found",
       notFoundDescription: "This item is not available right now.",
+      soldOutBadge: "Sold out",
+      soldOutMessage: "This dessert is currently sold out.",
       orderThisDessert: "Order this dessert",
       preorderNote: "Pre-order only",
       trustBadge: "Fresh by pre-order",
@@ -392,6 +400,8 @@ export const translations: Record<AppLanguage, Translation> = {
       availabilityChecking: "Checking date availability…",
       availabilityPickDate: "Pick a date to see if we still have capacity.",
       availabilityBlockedSubmit: "Choose an available date before sending to WhatsApp.",
+      productUnavailable: "This dessert is not available for ordering right now.",
+      chooseAnotherProduct: "Please choose another dessert from the menu.",
     },
     validation: {
       fullName: "Please enter your full name.",
@@ -565,11 +575,14 @@ export const translations: Record<AppLanguage, Translation> = {
     productCard: {
       startingFrom: "من",
       view: "عرض",
+      soldOut: "غير متوفر حالياً",
     },
     productPage: {
       backToMenu: "القائمة",
       notFoundTitle: "الصنف غير متوفر",
       notFoundDescription: "هذا الصنف غير متاح حالياً.",
+      soldOutBadge: "غير متوفر",
+      soldOutMessage: "هذه الحلوى غير متوفرة حالياً.",
       orderThisDessert: "اطلب هذه الحلوى",
       preorderNote: "طلب مسبق فقط",
       trustBadge: "طازج حسب الطلب المسبق",
@@ -635,6 +648,8 @@ export const translations: Record<AppLanguage, Translation> = {
       availabilityChecking: "جاري التحقق من توفر التاريخ…",
       availabilityPickDate: "اختر تاريخًا لمعرفة ما إذا كان هناك طاقة استيعاب.",
       availabilityBlockedSubmit: "اختر تاريخًا متاحًا قبل الإرسال إلى واتساب.",
+      productUnavailable: "هذه الحلوى غير متاحة للطلب حالياً.",
+      chooseAnotherProduct: "يرجى اختيار حلوى أخرى من القائمة.",
     },
     validation: {
       fullName: "يرجى إدخال الاسم الكامل.",
