@@ -14,5 +14,6 @@ export const brand = {
   },
   whatsappNumber: "+96879297772",
   instagramHandle: "@cocotreats.om",
+  instagramUrl: "https://www.instagram.com/cocotreats.om/",
   currency: "OMR",
 } as const;
