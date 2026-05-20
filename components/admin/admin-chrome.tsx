@@ -5,6 +5,7 @@ import { adminLogoutAction } from "@/app/admin/login/actions";
 const links: { href: string; label: string; disabled?: boolean }[] = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/production", label: "Production" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/offers", label: "Offers" },
@@ -12,7 +13,7 @@ const links: { href: string; label: string; disabled?: boolean }[] = [
   { href: "/admin/reports/profit", label: "Profit report" },
   { href: "/admin/availability", label: "Availability" },
   { href: "/admin/reviews", label: "Reviews", disabled: true },
-  { href: "/admin/settings", label: "Settings", disabled: true },
+  { href: "/admin/settings", label: "Settings" },
 ];
 
 export function AdminChrome({
@@ -25,7 +26,7 @@ export function AdminChrome({
   return (
     <div className="min-h-screen bg-[#f2e8dc] text-[color:var(--foreground)]">
       <div className="mx-auto flex max-w-[1400px] flex-col md:flex-row md:min-h-screen">
-        <aside className="border-[color:var(--border-soft)] bg-[color:var(--brand-burgundy)] text-[color:var(--card-cream)] md:w-56 md:shrink-0 md:border-r">
+        <aside className="border-[color:var(--border-soft)] bg-[color:var(--brand-burgundy)] text-[color:var(--card-cream)] md:w-56 md:shrink-0 md:border-r print:hidden">
           <div className="flex items-center justify-between gap-2 px-4 py-4 md:block">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--brand-gold-soft)]">

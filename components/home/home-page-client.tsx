@@ -9,9 +9,10 @@ import { RatingSummary } from "@/components/rating-summary";
 import { ReviewCard } from "@/components/review-card";
 import { ProductVisual } from "@/components/product-visual";
 import { BrandLogo } from "@/components/brand-logo";
-import { brand } from "@/config/brand";
 import { useAppLanguage } from "@/components/language-provider";
+import { usePublicBusinessSettings } from "@/components/public-settings-provider";
 import type { LocalizedText } from "@/data/products";
+import { localizedFromSettings } from "@/lib/settings/public-settings-types";
 import { type ReviewProductId, getAverageRating, getFeaturedReviews, getReviewCount } from "@/data/reviews";
 import type { StorefrontHomeData } from "@/lib/storefront/types";
 import {
@@ -31,6 +32,7 @@ export function HomePageClient({
   offerIsFromDatabase,
 }: HomePageClientProps) {
   const { language, t } = useAppLanguage();
+  const settings = usePublicBusinessSettings();
   const reduced = useReducedMotion() ?? false;
   const tapScale = scaleTapWhile(reduced);
 
@@ -50,7 +52,7 @@ export function HomePageClient({
   const offerTitle = offer?.title[language] ?? t.offers.launchBoxTitle;
   const offerBody = offer?.description[language] ?? t.offers.launchBoxBody;
   const offerPrice =
-    offer != null ? `${offer.priceOmr.toFixed(2)} ${brand.currency}` : null;
+    offer != null ? `${offer.priceOmr.toFixed(2)} ${settings.currency}` : null;
 
   const reviewId = (slug: string): ReviewProductId | null =>
     slug === "tiramisu" || slug === "jelly-cheesecake" ? slug : null;
@@ -83,10 +85,10 @@ export function HomePageClient({
                 </span>
               </motion.div>
               <p className="relative z-[1] mt-1.5 px-1 text-center text-[13px] font-semibold leading-snug tracking-tight text-[color:var(--foreground)]">
-                {t.home.brandTagline}
+                {localizedFromSettings(settings.home.headline, language)}
               </p>
               <p className="relative z-[1] mt-1 px-1 text-center text-[11.5px] font-medium leading-relaxed text-[color:var(--muted-text)]">
-                {t.home.heroSubtitle}
+                {localizedFromSettings(settings.home.subtitle, language)}
               </p>
             </motion.div>
 
@@ -160,7 +162,7 @@ export function HomePageClient({
                               {p.name[language]}
                             </p>
                             <p className="mt-0.5 text-[10px] font-medium text-white/85">
-                              {t.productCard.startingFrom} {start.toFixed(2)} {brand.currency}
+                              {t.productCard.startingFrom} {start.toFixed(2)} {settings.currency}
                             </p>
                           </div>
                         </div>

@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { getOrderDateAvailabilityAction } from "@/app/actions/order-date-availability";
 import { createOrderAction } from "@/app/actions/orders";
 import { ProductVisual } from "@/components/product-visual";
+import { usePublicBusinessSettings } from "@/components/public-settings-provider";
 import { formatLocaleQuantity } from "@/components/review-format";
 import { brand } from "@/config/brand";
 import { FULFILLMENT, type FulfillmentMethod } from "@/config/fulfillment";
@@ -23,6 +24,7 @@ import {
   staggerContainerVariants,
   staggerItemVariants,
 } from "@/lib/motion";
+import { localizedFromSettings, resolveWhatsappNumber } from "@/lib/settings/public-settings-types";
 
 type GpsCapture = {
   lat: number;
@@ -146,7 +148,7 @@ export function OrderForm({
   orderableProducts,
 }: OrderFormProps) {
   const t = translations[language];
-  const biz = translations[language].businessNotes;
+  const settings = usePublicBusinessSettings();
   const reduced = useReducedMotion() ?? false;
   const tapScale = scaleTapWhile(reduced);
 
@@ -330,7 +332,7 @@ export function OrderForm({
   const isDelivery = form.fulfillmentMethod === FULFILLMENT.DELIVERY;
 
   const orderMessage = joinWhatsappMessage(orderMessageLines);
-  const normalizedPhone = brand.whatsappNumber.replace(/\D/g, "");
+  const normalizedPhone = resolveWhatsappNumber(settings);
   const whatsappHref = `https://api.whatsapp.com/send?phone=${normalizedPhone}&text=${encodeURIComponent(orderMessage)}`;
 
   function updateForm<K extends keyof OrderFormState>(key: K, value: OrderFormState[K]) {
@@ -496,7 +498,9 @@ export function OrderForm({
       <motion.div variants={staggerItemVariants(reduced)} className="text-center">
         <h2 className="text-[18px] font-bold tracking-tight text-[color:var(--accent-cocoa)]">{t.form.title}</h2>
         <p className="mt-1 text-[11px] leading-snug text-[color:var(--foreground)]/68">{t.form.subtitle}</p>
-        <p className="mx-auto mt-2 max-w-[20rem] text-[10px] leading-snug text-[color:var(--foreground)]/55">{biz.preorder24h}</p>
+        <p className="mx-auto mt-2 max-w-[20rem] text-[10px] leading-snug text-[color:var(--foreground)]/55">
+          {localizedFromSettings(settings.notes.preorder, language)}
+        </p>
       </motion.div>
 
       <motion.div
@@ -864,7 +868,9 @@ export function OrderForm({
                 reduced={reduced}
               />
 
-              <p className="text-[9px] leading-snug text-[color:var(--foreground)]/62">{biz.deliveryFeeWhatsApp}</p>
+              <p className="text-[9px] leading-snug text-[color:var(--foreground)]/62">
+                {localizedFromSettings(settings.notes.delivery, language)}
+              </p>
             </motion.div>
           ) : null}
         </MotionSection>
@@ -882,8 +888,8 @@ export function OrderForm({
           </label>
           <div className="space-y-1.5 rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-3 py-2 text-[10px] leading-snug text-[color:var(--foreground)]/70">
             <p>{t.form.orderConfirmationNote}</p>
-            <p>{biz.paymentWhatsApp}</p>
-            {isDelivery ? <p>{biz.deliveryFeeWhatsApp}</p> : null}
+            <p>{localizedFromSettings(settings.notes.payment, language)}</p>
+            {isDelivery ? <p>{localizedFromSettings(settings.notes.delivery, language)}</p> : null}
           </div>
         </MotionSection>
 

@@ -6,9 +6,10 @@ import { useMemo, useState } from "react";
 import { ProductGalleryThumbnail, ProductVisual } from "@/components/product-visual";
 import { RatingSummary } from "@/components/rating-summary";
 import { ReviewCard } from "@/components/review-card";
-import { brand } from "@/config/brand";
 import { useAppLanguage } from "@/components/language-provider";
+import { usePublicBusinessSettings } from "@/components/public-settings-provider";
 import { getProductGallerySlots } from "@/data/products";
+import { localizedFromSettings } from "@/lib/settings/public-settings-types";
 import { type ReviewProductId, getAverageRating, getReviewCount, getReviewsForProductDetail } from "@/data/reviews";
 import type { StorefrontProduct } from "@/lib/storefront/types";
 import {
@@ -27,6 +28,7 @@ type ProductDetailClientProps = {
 
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const { language, t } = useAppLanguage();
+  const settings = usePublicBusinessSettings();
   const reduced = useReducedMotion() ?? false;
   const tapScale = scaleTapWhile(reduced);
 
@@ -213,7 +215,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               </span>
             </div>
             <p className="mt-2 max-w-xl text-[10px] leading-snug text-[color:var(--muted-text)]">
-              {t.businessNotes.preorder24h}
+              {localizedFromSettings(settings.notes.preorder, language)}
             </p>
           </div>
 
@@ -244,7 +246,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     <p className="text-[10px] text-[color:var(--muted-text)]">{size.serves[language]}</p>
                   </div>
                   <p className="shrink-0 text-[13px] font-bold tabular-nums text-[color:var(--brand-burgundy)]">
-                    {size.priceOmr.toFixed(2)} {brand.currency}
+                    {size.priceOmr.toFixed(2)} {settings.currency}
                   </p>
                 </motion.button>
               );
@@ -290,7 +292,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               {t.productPage.total}
             </p>
             <p className="text-[18px] font-bold tabular-nums leading-tight text-[color:var(--brand-burgundy)]">
-              {selectedSize.priceOmr.toFixed(2)} {brand.currency}
+              {selectedSize.priceOmr.toFixed(2)} {settings.currency}
             </p>
           </div>
           {soldOut ? (

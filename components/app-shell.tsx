@@ -9,6 +9,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { useAppLanguage } from "@/components/language-provider";
 import { brand } from "@/config/brand";
 import { buildWhatsappUrl } from "@/config/whatsapp";
+import { usePublicBusinessSettings } from "@/components/public-settings-provider";
 import { fadeInVariants, navSpringTransition, scaleTapWhile } from "@/lib/motion";
 
 function ChatBubbleIcon({ className }: { className?: string }) {
@@ -43,9 +44,10 @@ function matchContactRoute(path: string | null) {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { language, toggleLanguage, t } = useAppLanguage();
+  const settings = usePublicBusinessSettings();
   const reduced = useReducedMotion() ?? false;
 
-  const waHref = buildWhatsappUrl(t.waPrefill.hello);
+  const waHref = buildWhatsappUrl(t.waPrefill.hello, settings.whatsappNumber);
 
   const navItems = [
     { key: "home", href: "/", label: t.nav.home, match: (path: string | null) => path === "/" },
