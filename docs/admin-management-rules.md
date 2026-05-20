@@ -14,6 +14,8 @@ This document records **safe defaults** for catalog and operations data. It comp
 | **Expenses** | Category, title, amount, UTC date (`expenseDate`), notes | Prefer **Void** (`voidedAt`, optional reason) — excluded from totals; **Delete** for mistaken/test rows with title confirmation + acknowledgment | Negative amounts rejected. |
 | **Profit report** | N/A read-only aggregates | N/A | Admin-only math from orders + expense lines (`expenseDate`, void excluded). Archived orders remain in totals unless cancelled. |
 | **Availability / capacity** | Global settings; closed datetime ranges; per-day overrides | Prefer **Deactivate** on overrides / closed rows vs deleting history | Capacity counts **non-cancelled** orders by matching **`dateNeeded`** UTC day; archive **does not** free a slot; WhatsApp opens only after successful persist + availability gate. |
+| **Production board** | N/A (read-only planning view) | N/A | `/admin/production` groups non-cancelled orders by UTC `dateNeeded`; archived orders still count; print sheet is browser-based. |
+| **Settings** | Business identity, contact channels, customer-facing copy | N/A | `BusinessSetting` key/value; falls back to static config; secrets stay in env. |
 
 **Hard deletes that are comparatively safe**: empty categories; product/size rows never referenced by `order_items`; product images (media records only); offers while unreferenced by orders.
 
@@ -56,6 +58,24 @@ This document records **safe defaults** for catalog and operations data. It comp
 - **Overrides** set `maxOrders` for a single UTC calendar date; `maxOrders <= 0` is treated as **unlimited** for that day unless closed.
 - **Regular orders** must satisfy minimum calendar-day advance from **today UTC**; **large orders** (quantity ≥ threshold) must satisfy the larger notice window or submission is rejected server-side with bilingual copy.
 - **Cancelled orders never consume capacity**; archived orders **still consume** capacity because fulfillment reality unchanged.
+
+## Production planning (`/admin/production`)
+
+- Totals come from saved **`OrderItem` snapshots** (`productNameEn/Ar`, `sizeLabelEn/Ar`, quantities, line revenue/profit fields) joined to parent orders filtered by UTC **`dateNeeded`**.
+- **Cancelled orders are excluded** from all production totals and checklists.
+- **Archived orders still appear** — archive only hides default order lists, not kitchen prep reality.
+- **Unpaid orders** remain visible with clear UNPAID markers.
+- **Delivery orders** without address/maps/GPS show a warning on the production board.
+- **DELIVERED** orders may appear on historical dates but are visually muted.
+- **Print:** use the in-page **Print production sheet** button (browser print; no PDF export in this phase).
+
+## Settings (`/admin/settings`)
+
+- **`BusinessSetting`** stores non-secret business copy and contact channels (`whatsapp_number`, `instagram_url`, bilingual notes, home/contact hero text).
+- Missing keys fall back to **`config/brand.ts`** and **`config/translations.ts`** so the customer app stays resilient.
+- **Do not** store admin passwords, JWT secrets, or API tokens in settings — env/Vercel only.
+- Seed uses **`createMany({ skipDuplicates: true })`** so re-seeding does not overwrite admin edits.
+- Legacy JSON note keys (`note_preorder`, etc.) remain readable as fallbacks until fully migrated.
 
 ### Future sections
 

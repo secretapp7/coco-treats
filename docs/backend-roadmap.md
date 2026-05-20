@@ -2,6 +2,21 @@
 
 ## Current phase
 
+**Phase 8 — Admin settings page (completed)**
+
+- **Route:** `/admin/settings` — edit `BusinessSetting` key/value rows (identity, contact channels, customer notes, homepage + contact copy).
+- **Data:** `lib/admin/data/settings-queries.ts`, `lib/settings/public-settings.ts` with fallbacks to `config/brand.ts` + `config/translations.ts` when rows are missing.
+- **Public integration:** Contact page, footer, header WhatsApp, order/product notes, home hero copy, and server order WhatsApp URL read DB settings via `PublicSettingsProvider` (safe fallback if DB unavailable).
+- **Secrets:** Admin passwords, JWT, Blob tokens remain in env only — not stored in settings.
+
+**Phase 7 — Admin production planning board (completed)**
+
+- **Route:** `/admin/production` — UTC date filter (today, tomorrow, custom `?date=`, week overview `?view=week`).
+- **Data:** `lib/admin/data/production-queries.ts` aggregates real `Order` / `OrderItem` snapshots by `dateNeeded`; **cancelled orders excluded**; **archived orders included** (archive is admin list cleanup only).
+- **UI:** Summary cards, product/size quantity table, pickup vs delivery prep lists, order table (unpaid + missing delivery address warnings), ingredients/packaging/delivery checklists derived from line items.
+- **Print:** Browser print via **Print production sheet** (`@media print` hides admin sidebar/nav).
+- **Dashboard:** Tomorrow orders/units/top item + link to production board; sidebar nav includes **Production**.
+
 **Phase 6 — Public storefront database sync (completed)**
 
 - **Data layer:** `lib/storefront/*` — Prisma-backed queries with safe DTOs (`StorefrontProduct`, `StorefrontOffer`); no admin-only fields on the wire.
