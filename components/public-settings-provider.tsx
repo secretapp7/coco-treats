@@ -1,8 +1,11 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
-import type { PublicBusinessSettings } from "@/lib/settings/public-settings-types";
+import {
+  getDefaultPublicBusinessSettings,
+  type PublicBusinessSettings,
+} from "@/lib/settings/public-settings-types";
 
 const PublicSettingsContext = createContext<PublicBusinessSettings | null>(null);
 
@@ -20,8 +23,14 @@ export function PublicSettingsProvider({
 
 export function usePublicBusinessSettings(): PublicBusinessSettings {
   const ctx = useContext(PublicSettingsContext);
-  if (!ctx) {
-    throw new Error("usePublicBusinessSettings must be used within PublicSettingsProvider");
-  }
-  return ctx;
+
+  useEffect(() => {
+    if (!ctx && process.env.NODE_ENV === "development") {
+      console.warn(
+        "usePublicBusinessSettings: PublicSettingsProvider not found; using static defaults from config.",
+      );
+    }
+  }, [ctx]);
+
+  return ctx ?? getDefaultPublicBusinessSettings();
 }

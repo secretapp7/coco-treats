@@ -6,25 +6,27 @@ import { AppShell } from "@/components/app-shell";
 import { BrandLogo } from "@/components/brand-logo";
 import { ScreenEnter } from "@/components/motion/screen-enter";
 import { useAppLanguage } from "@/components/language-provider";
-import { brand } from "@/config/brand";
+import { usePublicBusinessSettings } from "@/components/public-settings-provider";
 import { buildWhatsappUrl } from "@/config/whatsapp";
+import { localizedFromSettings } from "@/lib/settings/public-settings-types";
 import { easePremium, scaleTapWhile, staggerContainerVariants, staggerItemVariants } from "@/lib/motion";
 
 const MotionLink = motion.create(Link);
 
 export default function ContactPage() {
   const { language, t } = useAppLanguage();
+  const settings = usePublicBusinessSettings();
   const reduced = useReducedMotion() ?? false;
   const tapScale = scaleTapWhile(reduced);
 
-  const waHref = buildWhatsappUrl(t.contactPage.whatsappPrefill);
-  const { businessNotes } = t;
+  const waHref = buildWhatsappUrl(t.contactPage.whatsappPrefill, settings.whatsappNumber);
+  const notes = settings.notes;
 
   const infoPulse = [
-    { key: "pre", body: businessNotes.preorder24h },
+    { key: "pre", body: localizedFromSettings(notes.preorder, language) },
     { key: "confirm", body: t.contactPage.noteOrders },
-    { key: "deliver", body: businessNotes.deliveryFeeWhatsApp },
-    { key: "pay", body: businessNotes.paymentWhatsApp },
+    { key: "deliver", body: localizedFromSettings(notes.delivery, language) },
+    { key: "pay", body: localizedFromSettings(notes.payment, language) },
   ] as const;
 
   const trust = [
@@ -67,7 +69,9 @@ export default function ContactPage() {
             <h1 className="mt-4 text-[19px] font-bold tracking-tight text-[color:var(--brand-burgundy)]">
               {t.contactPage.screenTitle}
             </h1>
-            <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-[color:var(--muted-text)]">{t.contactPage.locationLine}</p>
+            <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-[color:var(--muted-text)]">
+              {localizedFromSettings(settings.contact.intro, language)}
+            </p>
           </motion.div>
 
           <motion.a
@@ -95,11 +99,13 @@ export default function ContactPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--brand-gold-muted)]">
                   {t.contactPage.instagramLabel}
                 </p>
-                <p className="mt-1 font-mono text-[14px] font-semibold text-[color:var(--foreground)]">{brand.instagramHandle}</p>
+                <p className="mt-1 font-mono text-[14px] font-semibold text-[color:var(--foreground)]">
+                  {settings.instagramHandle}
+                </p>
                 <p className="mt-1.5 text-[10px] leading-snug text-[color:var(--foreground)]/68">{t.contactPage.trustInstagramBody}</p>
               </div>
               <MotionLink
-                href={brand.instagramUrl}
+                href={settings.instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileTap={tapScale}

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
+import { PublicSettingsProvider } from "@/components/public-settings-provider";
+import { getPublicBusinessSettings } from "@/lib/settings/public-settings";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -22,11 +24,13 @@ export const metadata: Metadata = {
     "Order fresh tiramisu and jelly cheesecake from Coco Treats in Muscat through WhatsApp.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const publicSettings = await getPublicBusinessSettings();
+
   return (
     <html
       lang="en"
@@ -34,7 +38,9 @@ export default function RootLayout({
       className={`${inter.variable} ${notoSansArabic.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans text-[color:var(--foreground)]">
-        <LanguageProvider>{children}</LanguageProvider>
+        <PublicSettingsProvider settings={publicSettings}>
+          <LanguageProvider>{children}</LanguageProvider>
+        </PublicSettingsProvider>
       </body>
     </html>
   );

@@ -117,3 +117,32 @@ a:focus:not(:focus-visible),
 button:focus:not(:focus-visible) {
   outline: none;
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  aside,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .production-board {
+    padding: 0 !important;
+  }
+
+  .production-board section,
+  .production-board table {
+    break-inside: avoid;
+  }
+
+  .production-print-header {
+    display: block !important;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.75rem;
+  }
+}

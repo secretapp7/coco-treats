@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getAvailabilityDashboardBrief } from "@/lib/admin/data/availability-dashboard";
+import { getProductionDashboardSummary } from "@/lib/admin/data/production-queries";
 import { getAdminDashboardSnapshot } from "@/lib/admin/dashboard-data";
 
 function money(n: number) {
@@ -8,7 +9,11 @@ function money(n: number) {
 }
 
 export default async function AdminDashboardPage() {
-  const [data, avail] = await Promise.all([getAdminDashboardSnapshot(), getAvailabilityDashboardBrief()]);
+  const [data, avail, production] = await Promise.all([
+    getAdminDashboardSnapshot(),
+    getAvailabilityDashboardBrief(),
+    getProductionDashboardSummary(),
+  ]);
   const p = data.profitBrief;
 
   return (
@@ -25,6 +30,32 @@ export default async function AdminDashboardPage() {
         <StatCard title="In progress (NEW→READY)" value={String(data.pendingOrders)} />
         <StatCard title="Delivered (all time)" value={String(data.deliveredCount)} />
         <StatCard title="Cancelled (all time)" value={String(data.cancelledCount)} />
+      </section>
+
+      <section className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--card-beige)] p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand-gold-muted)]">
+            Production planning ({production.tomorrowIso} UTC)
+          </h2>
+          <Link
+            href="/admin/production"
+            className="text-xs font-semibold text-[color:var(--brand-burgundy-soft)] underline-offset-2 hover:underline"
+          >
+            View production board
+          </Link>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <MiniStat title="Orders tomorrow" value={String(production.tomorrowOrders)} />
+          <MiniStat title="Units tomorrow" value={String(production.tomorrowUnits)} />
+          <MiniStat
+            title="Top item tomorrow"
+            value={
+              production.topItemTomorrow
+                ? `${production.topItemTomorrow.label} ×${production.topItemTomorrow.quantity}`
+                : "—"
+            }
+          />
+        </div>
       </section>
 
       <section className="grid gap-3 lg:grid-cols-2">
