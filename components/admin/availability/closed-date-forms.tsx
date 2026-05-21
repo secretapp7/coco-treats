@@ -14,17 +14,6 @@ const lbl = "block text-[11px] font-semibold text-[color:var(--muted-text)]";
 const btn =
   "rounded-lg bg-[color:var(--brand-burgundy)] px-3 py-2 text-xs font-semibold text-[color:var(--card-cream)]";
 
-function utcDatetimeLocal(value: Date) {
-  const d = new Date(value);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const y = d.getUTCFullYear();
-  const m = pad(d.getUTCMonth() + 1);
-  const day = pad(d.getUTCDate());
-  const h = pad(d.getUTCHours());
-  const min = pad(d.getUTCMinutes());
-  return `${y}-${m}-${day}T${h}:${min}`;
-}
-
 export function ClosedDateCreateForm() {
   return (
     <AdminActionForm action={createClosedDateFormAction} className="max-w-xl space-y-3">
