@@ -13,7 +13,7 @@ import { useAppLanguage } from "@/components/language-provider";
 import { usePublicBusinessSettings } from "@/components/public-settings-provider";
 import type { LocalizedText } from "@/data/products";
 import { localizedFromSettings } from "@/lib/settings/public-settings-types";
-import { type ReviewProductId, getAverageRating, getFeaturedReviews, getReviewCount } from "@/data/reviews";
+import { ratingForProductSlug } from "@/lib/storefront/review-display";
 import type { StorefrontHomeData } from "@/lib/storefront/types";
 import {
   easePremium,
@@ -30,15 +30,17 @@ export function HomePageClient({
   featuredPresentation,
   offer,
   offerIsFromDatabase,
+  featuredReviews,
+  globalRating,
+  ratingSummaries,
 }: HomePageClientProps) {
   const { language, t } = useAppLanguage();
   const settings = usePublicBusinessSettings();
   const reduced = useReducedMotion() ?? false;
   const tapScale = scaleTapWhile(reduced);
 
-  const globalAvg = getAverageRating();
-  const globalCount = getReviewCount();
-  const featuredReviews = getFeaturedReviews(2);
+  const globalAvg = globalRating.average;
+  const globalCount = globalRating.count;
 
   const pills = [
     t.home.pillPreorder,
@@ -49,13 +51,11 @@ export function HomePageClient({
   const fromPrice = (p: { sizes: { priceOmr: number }[] }) =>
     Math.min(...p.sizes.map((s) => s.priceOmr));
 
+  const productRating = (slug: string) => ratingForProductSlug(ratingSummaries, slug);
   const offerTitle = offer?.title[language] ?? t.offers.launchBoxTitle;
   const offerBody = offer?.description[language] ?? t.offers.launchBoxBody;
   const offerPrice =
     offer != null ? `${offer.priceOmr.toFixed(2)} ${settings.currency}` : null;
-
-  const reviewId = (slug: string): ReviewProductId | null =>
-    slug === "tiramisu" || slug === "jelly-cheesecake" ? slug : null;
 
   return (
     <AppShell>
@@ -120,7 +120,7 @@ export function HomePageClient({
               <div className="flex gap-2.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {signatures.map((p, index) => {
                   const start = fromPrice(p);
-                  const rid = reviewId(p.id);
+                  const rating = productRating(p.id);
                   return (
                     <motion.div
                       key={p.id}
@@ -146,12 +146,12 @@ export function HomePageClient({
                             sizes="180px"
                           />
                           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
-                          {rid ? (
+                          {rating.count > 0 ? (
                             <div className="absolute start-2 top-2">
                               <RatingSummary
                                 language={language}
-                                average={getAverageRating(rid)}
-                                count={getReviewCount(rid)}
+                                average={rating.average}
+                                count={rating.count}
                                 reviewsWord={t.reviews.reviewsWord}
                                 compact
                               />
@@ -199,12 +199,12 @@ export function HomePageClient({
                     <span className="absolute start-3 top-3 rounded-full border border-[color:var(--brand-burgundy)] bg-[color:var(--brand-gold-soft)]/95 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[color:var(--brand-burgundy)] shadow-sm backdrop-blur-sm ring-1 ring-[color:var(--border-soft)]">
                       {featured.badge[language]}
                     </span>
-                    {reviewId(featured.id) ? (
+                    {productRating(featured.id).count > 0 ? (
                       <motion.div className="absolute end-3 top-3">
                         <RatingSummary
                           language={language}
-                          average={getAverageRating(reviewId(featured.id)!)}
-                          count={getReviewCount(reviewId(featured.id)!)}
+                          average={productRating(featured.id).average}
+                          count={productRating(featured.id).count}
                           reviewsWord={t.reviews.reviewsWord}
                           compact
                         />

@@ -1,19 +1,20 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import type { Review } from "@/data/reviews";
 import type { AppLanguage } from "@/config/translations";
 import { StarRow } from "@/components/star-rating";
 import { easePremium } from "@/lib/motion";
+import { reviewDisplayText, type StorefrontReview } from "@/lib/storefront/review-display";
 
 type ReviewCardProps = {
-  review: Review;
+  review: StorefrontReview;
   language: AppLanguage;
   verifiedLabel: string;
 };
 
 export function ReviewCard({ review, language, verifiedLabel }: ReviewCardProps) {
   const reduced = useReducedMotion() ?? false;
+  const dateLabel = review.dateLabel[language] ?? review.dateLabel.en;
 
   return (
     <article className="rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--card-cream)] p-3 shadow-[0_6px_20px_-14px_rgba(65,6,19,0.14)] ring-1 ring-[color:rgba(225,189,115,0.12)]">
@@ -45,9 +46,11 @@ export function ReviewCard({ review, language, verifiedLabel }: ReviewCardProps)
             className="mt-1 flex items-center gap-2"
           >
             <StarRow rating={review.rating} />
-            <span className="text-[9px] font-medium text-[color:var(--foreground)]/55">{review.dateLabel[language]}</span>
+            <span className="text-[9px] font-medium text-[color:var(--foreground)]/55">{dateLabel}</span>
           </motion.div>
-          <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--foreground)]/78">{review.text[language]}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--foreground)]/78">
+            {reviewDisplayText(review, language)}
+          </p>
         </div>
       </div>
     </article>

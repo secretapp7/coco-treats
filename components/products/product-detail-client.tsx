@@ -10,7 +10,7 @@ import { useAppLanguage } from "@/components/language-provider";
 import { usePublicBusinessSettings } from "@/components/public-settings-provider";
 import { getProductGallerySlots } from "@/data/products";
 import { localizedFromSettings } from "@/lib/settings/public-settings-types";
-import { type ReviewProductId, getAverageRating, getReviewCount, getReviewsForProductDetail } from "@/data/reviews";
+import type { ProductRatingSummary, StorefrontReview } from "@/lib/storefront/review-display";
 import type { StorefrontProduct } from "@/lib/storefront/types";
 import {
   easePremium,
@@ -24,9 +24,11 @@ const MotionLink = motion.create(Link);
 
 type ProductDetailClientProps = {
   product: StorefrontProduct | null;
+  reviews: StorefrontReview[];
+  rating: ProductRatingSummary;
 };
 
-export function ProductDetailClient({ product }: ProductDetailClientProps) {
+export function ProductDetailClient({ product, reviews, rating }: ProductDetailClientProps) {
   const { language, t } = useAppLanguage();
   const settings = usePublicBusinessSettings();
   const reduced = useReducedMotion() ?? false;
@@ -38,11 +40,6 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const soldOut = product?.status === "SOLD_OUT";
 
-  const catalogId: ReviewProductId | null =
-    product?.id === "tiramisu" || product?.id === "jelly-cheesecake"
-      ? product.id
-      : null;
-
   const orderHref = useMemo(() => {
     if (!product || soldOut) return "/menu";
     const q = new URLSearchParams({ product: product.id, size: selectedSizeId });
@@ -51,9 +48,9 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const slots = useMemo(() => (product ? getProductGallerySlots(product) : []), [product]);
 
-  const avg = catalogId ? getAverageRating(catalogId) : 0;
-  const reviewCount = catalogId ? getReviewCount(catalogId) : 0;
-  const detailReviews = catalogId != null ? getReviewsForProductDetail(catalogId, 3) : [];
+  const avg = rating.average;
+  const reviewCount = rating.count;
+  const detailReviews = reviews;
 
   if (!product) {
     return (

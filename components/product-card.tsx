@@ -4,13 +4,12 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import type { Product } from "@/data/products";
 import type { StorefrontProductStatus } from "@/lib/storefront/types";
+import type { ProductRatingSummary } from "@/lib/storefront/review-display";
 import { brand } from "@/config/brand";
 import type { AppLanguage } from "@/config/translations";
 import { translations } from "@/config/translations";
 import { ProductVisual } from "@/components/product-visual";
 import { RatingSummary } from "@/components/rating-summary";
-import type { ReviewProductId } from "@/data/reviews";
-import { getAverageRating, getReviewCount } from "@/data/reviews";
 import {
   cardHoverWhile,
   easePremium,
@@ -21,16 +20,16 @@ import {
 type ProductCardProps = {
   product: Product & { status?: StorefrontProductStatus };
   language: AppLanguage;
+  rating?: ProductRatingSummary;
 };
 
-export function ProductCard({ product, language }: ProductCardProps) {
+export function ProductCard({ product, language, rating }: ProductCardProps) {
   const t = translations[language];
   const reduced = useReducedMotion() ?? false;
   const soldOut = product.status === "SOLD_OUT";
   const startingPrice = Math.min(...product.sizes.map((size) => size.priceOmr));
-  const pid = product.id as ReviewProductId;
-  const avg = getAverageRating(pid);
-  const count = getReviewCount(pid);
+  const avg = rating?.average ?? 0;
+  const count = rating?.count ?? 0;
 
   const hoverLift = cardHoverWhile(reduced);
   const tapScale = scaleTapWhile(reduced);

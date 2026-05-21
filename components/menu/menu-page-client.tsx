@@ -10,15 +10,18 @@ import { useAppLanguage } from "@/components/language-provider";
 import { brand } from "@/config/brand";
 import type { MenuCategory } from "@/data/products";
 import type { StorefrontOffer, StorefrontProduct } from "@/lib/storefront/types";
+import type { ProductRatingSummary } from "@/lib/storefront/review-display";
+import { ratingForProductSlug } from "@/lib/storefront/review-display";
 import { scaleTapWhile, staggerContainerVariants, staggerItemVariants } from "@/lib/motion";
 
 type MenuPageClientProps = {
   products: StorefrontProduct[];
   categoryIds: Array<MenuCategory | "all">;
   homeOffer: StorefrontOffer | null;
+  ratingSummaries: Record<string, ProductRatingSummary>;
 };
 
-export function MenuPageClient({ products, categoryIds, homeOffer }: MenuPageClientProps) {
+export function MenuPageClient({ products, categoryIds, homeOffer, ratingSummaries }: MenuPageClientProps) {
   const { language, t } = useAppLanguage();
   const reduced = useReducedMotion() ?? false;
   const tapScale = scaleTapWhile(reduced);
@@ -146,7 +149,12 @@ export function MenuPageClient({ products, categoryIds, homeOffer }: MenuPageCli
           <motion.section variants={staggerItemVariants(reduced)}>
             <div className="flex flex-col gap-3">
               {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} language={language} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  language={language}
+                  rating={ratingForProductSlug(ratingSummaries, product.id)}
+                />
               ))}
               {filteredProducts.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[color:var(--border-soft)] bg-[color:var(--card-cream)] px-3 py-6 text-center text-[12px] text-[color:var(--foreground)]/72">

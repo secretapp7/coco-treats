@@ -12,7 +12,7 @@ const links: { href: string; label: string; disabled?: boolean }[] = [
   { href: "/admin/expenses", label: "Expenses" },
   { href: "/admin/reports/profit", label: "Profit report" },
   { href: "/admin/availability", label: "Availability" },
-  { href: "/admin/reviews", label: "Reviews", disabled: true },
+  { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/settings", label: "Settings" },
 ];
 
